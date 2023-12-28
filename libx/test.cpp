@@ -22,6 +22,8 @@ public:
 };
 int main()
 {
+	// 记录开始时间点
+	auto start = std::chrono::high_resolution_clock::now();
 
 	TaskManager tm;
 	CA ca;
@@ -33,10 +35,14 @@ int main()
 	auto sumTaskId2 = tm.add(&CA::memberFunc, &ca, 1, 3.4);
 	auto res = tm.executeAll();
 
+	// 记录结束时间点
+	auto end = std::chrono::high_resolution_clock::now();
+
 	for (auto r : res)
 	{
 		std::cout << r->toString() << std::endl;
 	}
-
+	std::chrono::duration<double, std::milli> diff = end - start;
+	std::cout << "Tasks took " << diff.count() << " ms to complete." << std::endl;
 	return 0;
 }

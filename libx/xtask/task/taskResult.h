@@ -8,10 +8,10 @@
 class ExcuteResult
 {
 public:
-    ExcuteResult(TaskId id, std::any result) : id_(id), result_(result) {}
-
-    TaskId getId() const { return id_; }
-
+    ExcuteResult(TaskIdPtr id, std::any result) : id_(id), result_(result) {}
+    ExcuteResult(TaskId id, std::any result) : id_(std::make_shared<TaskId>(id)), result_(result) {}
+    auto getId() const { return id_; }
+    ~ExcuteResult() { std::cout << " ~ExcuteResult" << std::endl; }
     const std::any &toAny() const { return result_; }
 
     template <typename T>
@@ -45,7 +45,7 @@ public:
     }
 
 private:
-    TaskId id_;
+    TaskIdPtr id_;
     std::any result_;
 };
 using ExcuteResultPtr = std::shared_ptr<ExcuteResult>;

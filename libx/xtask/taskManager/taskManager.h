@@ -13,28 +13,28 @@ public:
     }
 
     template <typename F, typename... Args>
-    TaskId add(F &&function, Args &&...args)
+    TaskIdPtr add(F &&function, Args &&...args)
     {
         using ReturnType = std::invoke_result_t<F, Args...>;
         auto duration = std::chrono::system_clock::now().time_since_epoch();
         auto now = std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count();
-        TaskId taskId(std::hash<decltype(now)>()(now));
+        TaskIdPtr taskId = std::make_shared<TaskId>(std::hash<decltype(now)>()(now));
         while (findTask(taskId) != nullptr)
         {
             duration = std::chrono::system_clock::now().time_since_epoch();
             now = std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count();
-            taskId = TaskId(std::hash<decltype(now)>()(now));
+            taskId = std::make_shared<TaskId>(std::hash<decltype(now)>()(now));
         }
         auto task = std::make_shared<Task<F, ReturnType, Args...>>(taskId, std::forward<F>(function), std::forward<Args>(args)...);
         tasks_.enqueue(task);
         return taskId;
     }
-    TaskId add(ITaskPtr taskptr)
+    TaskIdPtr add(ITaskPtr taskptr)
     {
         tasks_.enqueue(taskptr);
         return taskptr->getId();
     }
-    ExcuteResultPtr execute(TaskId taskId)
+    ExcuteResultPtr execute(TaskIdPtr taskId)
     {
         auto task = findTask(taskId);
         if (task)
@@ -70,16 +70,16 @@ public:
         }
     }
 
-    ITaskPtr findTask(TaskId taskId)
+    ITaskPtr findTask(TaskIdPtr taskId)
     {
         return tasks_.find([taskId](auto task)
-                           { return task->getId() == taskId; });
+                           { return task->getId()->value() == taskId->value(); });
     }
 
-    bool removeTask(TaskId taskId)
+    bool removeTask(TaskIdPtr taskId)
     {
         return tasks_.removeOne([taskId](const ITaskPtr &task)
-                                { return task->getId() == taskId.value(); });
+                                { return task->getId()->value() == taskId->value(); });
     }
 
     size_t getTaskCount()
