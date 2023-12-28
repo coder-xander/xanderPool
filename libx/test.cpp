@@ -1,7 +1,5 @@
-﻿// XanderThreadPool.cpp: 定义应用程序的入口点。
-//
-
-#include "XanderThreadPool.h"
+﻿
+#include "test.h"
 #include "xtask/xtask.h"
 #include <string>
 
@@ -36,7 +34,7 @@ int main()
 
 	for (auto r : res)
 	{
-		std::cout << r.toString() << std::endl;
+		std::cout << r->toString() << std::endl;
 	}
 
 	return 0;

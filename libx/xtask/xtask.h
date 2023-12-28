@@ -5,6 +5,7 @@
 #include <iostream>
 #include <optional>
 #include "../xqueue/xqueue.h"
+#include <chrono>
 /// @brief 任务的id
 class TaskId
 {
@@ -89,16 +90,15 @@ class ITask
 {
 public:
     virtual ~ITask() = default;
-    virtual void run() = 0;
-    virtual ExcuteResultPtr toAny() = 0;
+    virtual ExcuteResultPtr run() = 0;
     virtual TaskId getId() = 0;
 };
+
+using ITaskPtr = std::shared_ptr<ITask>;
 /// @brief 任务实现类
 /// @tparam F 函数
 /// @tparam ...Args 参数
 /// @tparam R 返回值
-using ITaskPtr = std::shared_ptr<ITask>;
-
 template <typename F, typename R, typename... Args>
 class Task : public ITask
 {
@@ -109,17 +109,13 @@ public:
     {
         std::cout << " ~Task" << std::endl;
     }
-    void run() override
+    ExcuteResultPtr run() override
     {
-        result_ = func_();
+        return std::make_shared<ExcuteResult>(id_, func_());
     }
     TaskId getId() override
     {
         return id_;
-    }
-    ExcuteResultPtr toAny() override
-    {
-        return std::make_shared<ExcuteResult>(id_, result_);
     }
 
 private:
@@ -127,8 +123,7 @@ private:
     std::function<R()> func_;
     std::any result_;
 };
-#include <functional>
-#include <chrono>
+
 /// @brief 任务管理类
 class TaskManager
 {
@@ -155,26 +150,28 @@ public:
         tasks_.enqueue(task);
         return taskId;
     }
-
+    TaskId add(ITaskPtr taskptr)
+    {
+        tasks_.enqueue(taskptr);
+        return taskptr->getId();
+    }
     ExcuteResultPtr execute(TaskId taskId)
     {
         auto task = findTask(taskId);
         if (task)
         {
-            task->run();
-            return task->toAny();
+            return task->run();
         }
         throw std::runtime_error("Task not found.");
     }
-    std::vector<ExcuteResult> executeAll()
+    std::vector<ExcuteResultPtr> executeAll()
     {
-        std::vector<ExcuteResult> results;
+        std::vector<ExcuteResultPtr> results;
         auto testTask = tasks_.tryPop();
         while (testTask.has_value())
         {
             {
-                testTask.value()->run();
-                results.push_back(*testTask.value()->toAny());
+                results.push_back(testTask.value()->run());
             }
             testTask = tasks_.tryPop();
         }
@@ -185,9 +182,7 @@ public:
         auto task = tasks_.tryPop();
         if (task.has_value())
         {
-
-            task.value()->run();
-            return task.value()->toAny();
+            return task.value()->run();
         }
         else
         {
