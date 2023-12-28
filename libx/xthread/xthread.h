@@ -1,6 +1,7 @@
-#pragma once
-#include "../xtask/xtask.h"
+﻿#pragma once
 #include "../xlock/xlock.h"
+#include "../xtask/task/task.h"
+#include "../xtask/taskManager/taskManager.h"
 class XThread
 {
 private:
@@ -11,6 +12,26 @@ private:
 	std::mutex taskManagerMutex_;
 
 public:
+	enum class State
+	{
+		Running,
+		waitting,
+		Exited,
+
+	};
+	State status_;
+	std::mutex statusMutex_;
+	State getState()
+	{
+		std::lock_guard guard(statusMutex_);
+		return status_;
+	}
+
+	void setStatus(State s)
+	{
+		std::lock_guard guard(statusMutex_);
+		status_ = s;
+	}
 	explicit XThread() : tasksXLock_(0)
 	{
 		taskmanager_ = TaskManager::makeShared();
@@ -19,13 +40,13 @@ public:
 							  {
 			while (!exitFlag_.load(	))
 			{
+				setStatus(State::waitting);
 				tasksXLock_.acquire();//等待任务
-				auto task = taskmanager_->execute();//执行队列任务
-				if (task)
-				{
-					std::cout << "task result:"  << std::endl;
-				}
+				setStatus(State::Running);
+				auto task = taskmanager_->execute(); // 执行队列任务
 			} });
+
+		setStatus(State::Exited);
 	}
 	~XThread()
 	{
