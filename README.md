@@ -1,3 +1,3 @@
-multi task
-thrad pool 
+multi task  
+thread pool  
 native cpp  
