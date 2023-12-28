@@ -51,3 +51,4 @@ public:
 private:
 	TaskManagerPtr taskmanager_;
 };
+using XThreadPtr = std::shared_ptr<XThread>;
