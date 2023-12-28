@@ -1,6 +1,6 @@
 ﻿
 #include "test.h"
-#include "xtask/xtask.h"
+#include "xtask/taskManager/taskManager.h"
 #include <string>
 
 using namespace std;
@@ -29,6 +29,7 @@ int main()
 	auto sumTaskId = tm.add([](int x, int y)
 							{ return std::to_string(x + y); },
 							1, 2);
+	// 添加一个成员函数任务
 	auto sumTaskId2 = tm.add(&CA::memberFunc, &ca, 1, 3.4);
 	auto res = tm.executeAll();
 
