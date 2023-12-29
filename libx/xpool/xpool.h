@@ -6,18 +6,25 @@ private:
     std::vector<XThreadPtr> threadPool_;
 
 public:
-    XPool(size_t threadCount)
+    explicit XPool(size_t threadCount = 12)
     {
-        for (size_t i = 0; i < threadCount; ++i)
+        for (size_t i = 0; i < threadCount; i++)
         {
-            threadPool_.push_back(XThreadPtr(new XThread()));
+            threadPool_.push_back(XThread::makeShared());
         }
     }
     ~XPool()
     {
-        // for (auto &thread : threadPool_)
-        // {
-        //     thread->exitFlag_.store(true);
-        // }
+        std::cout << "~XPool" << std::endl;
+        threadPool_.clear();
+    }
+
+    XThreadPtr avaiableThread()
+    {
+        // 调度
+        }
+    template <typename F, typename... Args>
+    TaskId acceptTask(F &&function, Args &&...args)
+    {
     }
 }

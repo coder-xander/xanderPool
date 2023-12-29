@@ -12,6 +12,10 @@ private:
 	std::mutex taskManagerMutex_;
 
 public:
+	static std::shared_ptr<XThread> makeShared()
+	{
+		return std::make_shared<XThread>();
+	}
 	enum class State
 	{
 		Running,
@@ -50,6 +54,14 @@ public:
 	}
 	~XThread()
 	{
+		std::cout << "~XThread";
+		exitFlag_.store(true);
+		if (trhead_.joinable())
+		{
+			thread_.join();
+			thread_.wait();
+		}
+		setStatus(State::Exited);
 	}
 	/// @brief 如果可以，线程接受这个任务
 	/// @return
