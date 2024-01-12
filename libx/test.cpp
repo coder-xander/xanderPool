@@ -4,50 +4,50 @@
 #include <string>
 
 using namespace std;
-class CA
+class ClassA
 {
 public:
-	CA()
+	ClassA()
 	{
 		std::cout << "CA()" << std::endl;
 	}
-	~CA()
+	~ClassA()
 	{
 		std::cout << "~CA()" << std::endl;
 	}
 	std::string memberFunc(int a, double b)
 	{
+		std::cout << "Sum memberFunc" << std::endl;
 		return std::to_string(a) + std::to_string(b);
 	}
 };
 int main()
 {
-	// 记录开始时间点
-	auto start = std::chrono::high_resolution_clock::now();
-
 	TaskManager tm;
-	CA ca;
+	ClassA ca;
 
-	for (size_t i = 0; i < 100; i++)
-	{
-		// 添加一个全局函数任务
-		auto sumTaskId = tm.add([](int x, int y)
-								{ return std::to_string(x + y); },
-								1, 2);
-		// 添加一个成员函数任务
-		auto sumTaskId2 = tm.add(&CA::memberFunc, &ca, 1, 3.4);
-	}
+	// 如图想用字符串映射到任务，先定义一个容器map
+	std::unordered_map<std::string, TaskIdPtr> taskIdMap;
 
-	auto res = tm.executeAll();
+	// 添加一个全局函数
+	auto sumTaskId = tm.add([](int x, int y)
+							{ std::cout<<"Sum 33333333333333333"<<std::endl;
+								return std::to_string(x + y); },
+							1, 2);
+	taskIdMap.insert({"abababa", sumTaskId}); // 添加到map
+	// 添加一个成员函数
+	auto sumTaskId2 = tm.add(&ClassA::memberFunc, &ca, 1, 3.4);
+	// 也可以添加全局函数
+	// 如果要用abababa找到这个任务
+	auto task = tm.findTask(taskIdMap["abababa"]);
+	// 执行
+	tm.execute(taskIdMap["abababa"]);
+	// auto res = tm.executeAll(); // 全部执行
 
-	// 记录结束时间点
-	auto end = std::chrono::high_resolution_clock::now();
-
-	for (auto r : res)
-	{
-		std::cout << r->toString() << std::endl;
-	}
-	std::chrono::duration<double, std::milli> diff = end - start;
-	std::cout << "Tasks took " << diff.count() << " ms to complete." << std::endl;
+	// for (auto r : res)
+	// {
+	// 	std::cout << r->toString() << std::endl;
+	// }
+	system("pause");
 	return 0;
 }

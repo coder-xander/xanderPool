@@ -13,21 +13,21 @@ public:
     {
         return std::make_shared<TaskId>();
     }
-    TaskId() = default;
-    TaskId(size_t id) : id_(id) {}
-    TaskId(const TaskId &other) : id_(other.id_) {}
-    TaskId(TaskId &&other) : id_(std::move(other.id_)) {}
+    explicit  TaskId() = default;
+    explicit  TaskId(size_t id) : id_(id) {}
+    explicit  TaskId(const TaskId& other) : id_(other.id_) {}
+    explicit TaskId(TaskId&& other) noexcept : id_(std::move(other.id_)) {}
     ~TaskId()
     {
         std::cout << "TaskId::~TaskId()" << std::endl;
     }
-    TaskId &operator=(const TaskId &other)
+    TaskId& operator=(const TaskId& other)
     {
         id_ = other.id_;
         return *this;
     }
 
-    bool operator==(const TaskId &other) const
+    bool operator==(const TaskId& other) const
     {
         if (!isValid() || !other.isValid())
         {

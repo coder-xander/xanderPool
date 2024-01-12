@@ -5,14 +5,14 @@
 #include <iostream>
 /// @brief 执行结果的返回值
 /// @author xander
-class ExcuteResult
+class ExecuteResult
 {
 public:
-    ExcuteResult(TaskIdPtr id, std::any result) : id_(id), result_(result) {}
-    ExcuteResult(TaskId id, std::any result) : id_(std::make_shared<TaskId>(id)), result_(result) {}
+    ExecuteResult(TaskIdPtr id, std::any result) : id_(id), result_(result) {}
+    ExecuteResult(TaskId id, std::any result) : id_(std::make_shared<TaskId>(id)), result_(result) {}
     auto getId() const { return id_; }
-    ~ExcuteResult() { std::cout << " ~ExcuteResult" << std::endl; }
-    const std::any &toAny() const { return result_; }
+    ~ExecuteResult() { std::cout << " ~ExcuteResult" << std::endl; }
+    const std::any& toAny() const { return result_; }
 
     template <typename T>
     T to() const
@@ -48,4 +48,4 @@ private:
     TaskIdPtr id_;
     std::any result_;
 };
-using ExcuteResultPtr = std::shared_ptr<ExcuteResult>;
+using ExcuteResultPtr = std::shared_ptr<ExecuteResult>;

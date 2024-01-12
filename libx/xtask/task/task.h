@@ -6,10 +6,10 @@
 #include <any>
 /// @brief 任务的基类
 
-class ITask
+class TaskBase
 {
 public:
-    virtual ~ITask() = default;
+    virtual ~TaskBase() = default;
     virtual ExcuteResultPtr run() = 0;
     virtual TaskIdPtr getId() = 0;
 };
@@ -19,18 +19,18 @@ public:
 /// @tparam ...Args 参数
 /// @tparam R 返回值
 template <typename F, typename R, typename... Args>
-class Task : public ITask
+class Task : public TaskBase
 {
 public:
-    explicit Task(TaskIdPtr id, F &&function, Args &&...args)
+    explicit Task(TaskIdPtr id, F&& function, Args &&...args)
         : id_(id), func_(std::bind(std::forward<F>(function), std::forward<Args>(args)...)) {}
-    ~Task()
+    ~Task() override
     {
         std::cout << " ~Task" << std::endl;
     }
     ExcuteResultPtr run() override
     {
-        return std::make_shared<ExcuteResult>(id_, func_());
+        return std::make_shared<ExecuteResult>(id_, func_());
     }
     TaskIdPtr getId() override
     {
@@ -42,4 +42,4 @@ private:
     std::function<R()> func_;
     std::any result_;
 };
-using ITaskPtr = std::shared_ptr<ITask>;
+using ITaskPtr = std::shared_ptr<TaskBase>;
