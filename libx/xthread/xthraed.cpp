@@ -1,4 +1,11 @@
 #include "xthread.h"
+
+bool XThread::isWaitting()
+{
+	std::lock_guard guard(statusMutex_);
+	return status_ == Waitting;
+}
+
 XThread::State XThread::getState()
 {
 	std::lock_guard guard(statusMutex_);

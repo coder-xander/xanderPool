@@ -33,7 +33,19 @@ public:
     }
     TaskIdPtr add(TaskBasePtr taskptr);
     
-    std::vector<ExecuteResultPtr> executeAll();
+    std::vector<ExecuteResultPtr> executeAll()
+    {
+        std::vector<ExecuteResultPtr> results;
+        auto testTask = tasks_.tryPop();
+        while (testTask.has_value())
+        {
+            {
+                results.push_back(testTask.value()->run());
+            }
+            testTask = tasks_.tryPop();
+        }
+        return results;
+    }
     ExecuteResultPtr execute();
     ExecuteResultPtr execute(TaskIdPtr taskId)
     {

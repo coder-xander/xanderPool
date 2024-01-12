@@ -8,20 +8,6 @@ TaskIdPtr TaskManager::add(TaskBasePtr taskptr)
 
 
 
-std::vector<ExecuteResultPtr> TaskManager::executeAll()
-{
-    std::vector<ExecuteResultPtr> results;
-    auto testTask = tasks_.tryPop();
-    while (testTask.has_value())
-    {
-        {
-            results.push_back(testTask.value()->run());
-        }
-        testTask = tasks_.tryPop();
-    }
-    return results;
-}
-
 ExecuteResultPtr TaskManager::execute()
 {
     auto task = tasks_.tryPop();
