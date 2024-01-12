@@ -1,27 +1,34 @@
 ﻿#pragma once
 #include <any>
 #include <functional>
+#include <future>
+
 #include "taskId.h"
 #include <iostream>
 /// @brief 执行结果的返回值
 /// @author xander
-class ExecuteResult
+class TaskResult
 {
 public:
-    ExecuteResult(TaskIdPtr id, std::any result) : id_(id), result_(result) {}
-    ExecuteResult(TaskId id, std::any result) : id_(std::make_shared<TaskId>(id)), result_(result) {}
+    static std::shared_ptr<TaskResult> makeShard(TaskIdPtr id, std::shared_ptr<std::promise<std::any>> resultFture)
+    {
+        return std::make_shared<TaskResult>(id, resultFture);
+    }
+    TaskResult(TaskIdPtr id, std::shared_ptr<std::promise<std::any>> resultFuture) : id_(id), resultFuture_(resultFuture) {}
+    TaskResult(TaskId id, std::shared_ptr<std::promise<std::any>> resultFuture) : id_(std::make_shared<TaskId>(id)), resultFuture_(resultFuture) {}
     auto getId() const { return id_; }
-    ~ExecuteResult() { std::cout << " ~ExecuteResult" << std::endl; }
-    const std::any& toAny() const { return result_; }
-
+    ~TaskResult() { std::cout << " ~ExecuteResult" << std::endl; }
+    const std::any& toAny() const { return resultFuture_->get_future().get(); }
+    void setId(TaskIdPtr id) { id_ = id; };
     template <typename T>
     T to() const
     {
-        if (result_.type() != typeid(T))
+      
+        if (resultFuture_->get_future().get().type() != typeid(T))
         {
             throw std::bad_cast();
         }
-        return std::any_cast<T>(result_);
+        return std::any_cast<T>(resultFuture_->get_future().get());
     }
     std::string toString() const
     {
@@ -43,9 +50,12 @@ public:
     {
         return to<bool>();
     }
-
+    std::shared_ptr<std::promise<std::any>>getResultFuture()
+    {
+        return resultFuture_;
+    }
 private:
     TaskIdPtr id_;
-    std::any result_;
+    std::shared_ptr<std::promise<std::any>> resultFuture_;
 };
-using ExecuteResultPtr = std::shared_ptr<ExecuteResult>;
+using TaskResultPtr = std::shared_ptr<TaskResult>;

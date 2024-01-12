@@ -2,6 +2,8 @@
 /// @brief 任务管理类
 
 #include <chrono>
+#include <future>
+
 #include "../task/task.h"
 #include "../../xqueue/xqueue.h"
 class TaskManager
@@ -15,9 +17,10 @@ public:
     }
 
     template <typename F, typename... Args>
-    TaskIdPtr add(F &&function, Args &&...args)
+    TaskResultPtr add(F &&function, Args &&...args)
     {
-        using ReturnType = std::invoke_result_t<F, Args...>;
+        using ReturnType = typename  std::invoke_result_t<F, Args...>;
+        std::shared_ptr<std::promise<std::any>> promisePtr;//异步
         auto duration = std::chrono::system_clock::now().time_since_epoch();
         auto now = std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count();
         TaskIdPtr taskId = std::make_shared<TaskId>(std::hash<decltype(now)>()(now));
@@ -28,14 +31,16 @@ public:
             taskId = std::make_shared<TaskId>(std::hash<decltype(now)>()(now));
         }
         auto task = std::make_shared<Task<F, ReturnType, Args...>>(taskId, std::forward<F>(function), std::forward<Args>(args)...);
+  
         tasks_.enqueue(task);
-        return taskId;
+        TaskResultPtr taskResultPtr = TaskResult::makeShard(taskId,promisePtr);
+        task->setTaskResultPtr(taskResultPtr);
+        return taskResultPtr;
     }
-    TaskIdPtr add(TaskBasePtr taskptr);
-    
-    std::vector<ExecuteResultPtr> executeAll()
+
+    std::vector<std::any > executeAll()
     {
-        std::vector<ExecuteResultPtr> results;
+        std::vector<std::any > results;
         auto testTask = tasks_.tryPop();
         while (testTask.has_value())
         {
@@ -46,8 +51,26 @@ public:
         }
         return results;
     }
-    ExecuteResultPtr execute();
-    ExecuteResultPtr execute(TaskIdPtr taskId)
+    TaskBasePtr nextTask()
+    {
+        return tasks_.tryPop().value();
+    }
+    std::any  execute()
+    {
+        auto task = tasks_.tryPop();
+        if (task.has_value())
+        {
+
+            return   task.value()->run();
+
+        }
+        else
+        {
+            throw std::runtime_error("Task not found.");
+            return nullptr;
+        }
+    }
+    std::any  execute(TaskIdPtr taskId)
     {
         auto task = findTask(taskId);
         if (task)
@@ -62,7 +85,7 @@ public:
             { return task->getId()->value() == taskId->value(); });
     }
     bool removeTask(TaskIdPtr taskId);
-    size_t getTaskCount();
+    size_t getTaskCount(){ return tasks_.size(); }
     void clear();
 };
 using TaskManagerPtr = std::shared_ptr<TaskManager>;

@@ -4,14 +4,16 @@
 #include <memory>
 #include <functional>
 #include <any>
+#include <future>
 /// @brief 任务的基类
-
 class TaskBase
 {
 public:
     virtual ~TaskBase() = default;
-    virtual ExecuteResultPtr run() = 0;
+    virtual std::any run() = 0;
     virtual TaskIdPtr getId() = 0;
+    virtual void  setTaskResultPtr(TaskResultPtr taskResultPtr) = 0;
+    virtual TaskResultPtr getTaskResultPtr() = 0;
 };
 
 /// @brief 任务实现类
@@ -28,18 +30,26 @@ public:
     {
         std::cout << " ~Task" << std::endl;
     }
-    ExecuteResultPtr run() override
+    std::any run() override
     {
-        return std::make_shared<ExecuteResult>(id_, func_());
+        return func_();
     }
     TaskIdPtr getId() override
     {
         return id_;
     }
+    void setTaskResultPtr(TaskResultPtr taskResultPtr) override
+    {
+        taskResultPtr_ = taskResultPtr;
 
+    }
+    TaskResultPtr getTaskResultPtr() override
+    {
+        return taskResultPtr_;
+    }
 private:
     TaskIdPtr id_;
     std::function<R()> func_;
-    std::any result_;
+    TaskResultPtr taskResultPtr_;
 };
 using TaskBasePtr = std::shared_ptr<TaskBase>;

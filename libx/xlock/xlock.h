@@ -6,8 +6,21 @@ class XLock
 {
 public:
     XLock(int count) : count_(count) {}
-    void acquire();
-    void release();
+    void acquire()
+    {
+        std::unique_lock<std::mutex> lock(mutex_);
+        while (count_ <= 0)
+        {
+            con_.wait(lock);
+        }
+        --count_;
+    }
+    void release()
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        ++count_;
+        con_.notify_one();
+    }
 private:
     std::mutex mutex_;
     std::atomic_int count_;

@@ -48,10 +48,10 @@ public:
     }
     /// @brief 线程池接受一个任务
     template <typename F, typename... Args >
-    std::future<std::invoke_result_t<F, Args...>> acceptTask(F&& function, Args &&...args)
+    TaskResultPtr acceptTask(F&& f, Args &&...args)
     {
         auto thread = decideAThread();
-       return  thread->acceptTask(std::forward<F>(function), std::forward<Args>(args ...));
+       return  thread->acceptTask(std::forward<F>(f), std::forward<Args>(args)...);
     }
 
 };

@@ -1,7 +1,7 @@
 ﻿#pragma once
 #include "../xtask/task/task.h"
-#include "../xlock/xlock.h"
 #include "../xtask/taskManager/taskManager.h"
+#include "../xlock/xlock.h"
 
 class XThread
 {
@@ -31,8 +31,34 @@ private:
 	//任务管理器，每个线程都有一个管理器
 	TaskManagerPtr taskmanager_;
 public:
-	explicit XThread();
-	~XThread();
+	explicit XThread(): tasksXLock_(12)
+	{
+		taskmanager_ = TaskManager::makeShared();
+		exitFlag_.store(false);
+		thread_ = std::thread([this]()
+			{
+				while (!exitFlag_.load())
+				{
+					setStatus(State::Waitting);
+					tasksXLock_.acquire();//等待任务
+					setStatus(State::Running);
+					auto task = taskmanager_->nextTask();
+					auto res = taskmanager_->execute();
+					task->getTaskResultPtr()->getResultFuture()->set_value(res);
+				} });
+
+		setStatus(State::Exited);
+	}
+	~XThread()
+	{
+		std::cout << "~XThread";
+		exitFlag_.store(true);
+		if (thread_.joinable())
+		{
+			thread_.join();
+		}
+		setStatus(State::Exited);
+	}
 
 public:
 	
@@ -40,25 +66,35 @@ public:
 	{
 		return std::make_shared<XThread>();
 	}
-	bool isWaitting();
+	bool isWaitting()
+	{
+		std::lock_guard guard(statusMutex_);
+		return status_ == Waitting;
+	}
 	/// @brief 获取状态
-	State getState();
+	State getState()
+	{
+		std::lock_guard guard(statusMutex_);
+		return status_;
+	}
 	/// @brief 设置状态
-	void setStatus(State s);
-	/// @brief 接受这个任务,用这个线程的任务管理器来处理
-	/// @return 返回任务id
-	TaskIdPtr acceptTask(TaskBasePtr taskptr);
+	void setStatus(State s)
+	{
+		std::lock_guard guard(statusMutex_);
+		status_ = s;
+	}
+
 	/// @brief 接受这个任务,用这个线程的任务管理器来处理
 	/// @return 返回任务id
 	template <typename F, typename... Args>
-	TaskId acceptTask(F &&function, Args &&...args)
+	TaskResultPtr acceptTask(F &&f, Args &&...args)
 	{
 		std::lock_guard guard(taskManagerMutex_);
-		auto id = taskmanager_->add(std::forward<F>(function), std::forward<Args>(args)...);
+		auto resultPtr = taskmanager_->add(std::forward<F>(f), std::forward<Args>(args)...);
 		tasksXLock_.release();
-		return id;
+		return resultPtr;
 	}
-	int getTaskCount()
+	size_t getTaskCount()
 	{
 		std::lock_guard lock(taskManagerMutex_);
 		return  taskmanager_->getTaskCount();
