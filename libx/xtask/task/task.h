@@ -10,7 +10,7 @@ class TaskBase
 {
 public:
     virtual ~TaskBase() = default;
-    virtual ExcuteResultPtr run() = 0;
+    virtual ExecuteResultPtr run() = 0;
     virtual TaskIdPtr getId() = 0;
 };
 
@@ -19,7 +19,7 @@ public:
 /// @tparam ...Args 参数
 /// @tparam R 返回值
 template <typename F, typename R, typename... Args>
-class Task : public TaskBase
+class Task final : public TaskBase
 {
 public:
     explicit Task(TaskIdPtr id, F&& function, Args &&...args)
@@ -28,7 +28,7 @@ public:
     {
         std::cout << " ~Task" << std::endl;
     }
-    ExcuteResultPtr run() override
+    ExecuteResultPtr run() override
     {
         return std::make_shared<ExecuteResult>(id_, func_());
     }
@@ -42,4 +42,4 @@ private:
     std::function<R()> func_;
     std::any result_;
 };
-using ITaskPtr = std::shared_ptr<TaskBase>;
+using TaskBasePtr = std::shared_ptr<TaskBase>;

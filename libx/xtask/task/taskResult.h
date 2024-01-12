@@ -11,7 +11,7 @@ public:
     ExecuteResult(TaskIdPtr id, std::any result) : id_(id), result_(result) {}
     ExecuteResult(TaskId id, std::any result) : id_(std::make_shared<TaskId>(id)), result_(result) {}
     auto getId() const { return id_; }
-    ~ExecuteResult() { std::cout << " ~ExcuteResult" << std::endl; }
+    ~ExecuteResult() { std::cout << " ~ExecuteResult" << std::endl; }
     const std::any& toAny() const { return result_; }
 
     template <typename T>
@@ -48,4 +48,4 @@ private:
     TaskIdPtr id_;
     std::any result_;
 };
-using ExcuteResultPtr = std::shared_ptr<ExecuteResult>;
+using ExecuteResultPtr = std::shared_ptr<ExecuteResult>;

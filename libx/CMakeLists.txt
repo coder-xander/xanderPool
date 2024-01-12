@@ -7,7 +7,7 @@ add_subdirectory(xlock)
 add_subdirectory(xtask)
 add_subdirectory(xthread)
 # 主项目
-add_executable (XanderThreadPool "test.cpp" "test.h")
+add_executable (XanderThreadPool "test.cpp" )
 # 链接
 target_link_libraries(xqueue)
 target_link_libraries(xlock)

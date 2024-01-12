@@ -1,7 +1,7 @@
 ﻿
-#include "test.h"
+
 #include "xtask/taskManager/taskManager.h"
-#include <string>
+
 
 using namespace std;
 class ClassA

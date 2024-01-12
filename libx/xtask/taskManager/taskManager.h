@@ -1,11 +1,13 @@
 ﻿#pragma once
 /// @brief 任务管理类
 
-#include "../task/task.h"
 #include <chrono>
+#include "../task/task.h"
 #include "../../xqueue/xqueue.h"
 class TaskManager
 {
+private:
+    XQueue<TaskBasePtr> tasks_;
 public:
     static std::shared_ptr<TaskManager> makeShared()
     {
@@ -29,12 +31,11 @@ public:
         tasks_.enqueue(task);
         return taskId;
     }
-    TaskIdPtr add(ITaskPtr taskptr)
-    {
-        tasks_.enqueue(taskptr);
-        return taskptr->getId();
-    }
-    ExcuteResultPtr execute(TaskIdPtr taskId)
+    TaskIdPtr add(TaskBasePtr taskptr);
+    
+    std::vector<ExecuteResultPtr> executeAll();
+    ExecuteResultPtr execute();
+    ExecuteResultPtr execute(TaskIdPtr taskId)
     {
         auto task = findTask(taskId);
         if (task)
@@ -43,57 +44,13 @@ public:
         }
         throw std::runtime_error("Task not found.");
     }
-    std::vector<ExcuteResultPtr> executeAll()
-    {
-        std::vector<ExcuteResultPtr> results;
-        auto testTask = tasks_.tryPop();
-        while (testTask.has_value())
-        {
-            {
-                results.push_back(testTask.value()->run());
-            }
-            testTask = tasks_.tryPop();
-        }
-        return results;
-    }
-    ExcuteResultPtr execute()
-    {
-        auto task = tasks_.tryPop();
-        if (task.has_value())
-        {
-            return task.value()->run();
-        }
-        else
-        {
-            throw std::runtime_error("Task not found.");
-            return nullptr;
-        }
-    }
-
-    ITaskPtr findTask(TaskIdPtr taskId)
+    TaskBasePtr findTask(TaskIdPtr taskId)
     {
         return tasks_.find([taskId](auto task)
-                           { return task->getId()->value() == taskId->value(); });
+            { return task->getId()->value() == taskId->value(); });
     }
-
-    bool removeTask(TaskIdPtr taskId)
-    {
-        return tasks_.removeOne([taskId](const ITaskPtr &task)
-                                { return task->getId()->value() == taskId->value(); });
-    }
-
-    size_t getTaskCount()
-    {
-        return tasks_.size();
-    }
-
-    void clear()
-    {
-        tasks_.clear();
-    }
-
-private:
-    XQueue<ITaskPtr> tasks_;
+    bool removeTask(TaskIdPtr taskId);
+    size_t getTaskCount();
+    void clear();
 };
-
 using TaskManagerPtr = std::shared_ptr<TaskManager>;
