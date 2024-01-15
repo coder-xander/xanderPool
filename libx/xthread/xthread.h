@@ -29,7 +29,11 @@ private:
 	//任务管理器，每个线程都有一个管理器
 	TaskManagerPtr taskmanager_;
 public:
-	explicit XThread(): tasksXLock_(12)
+	auto getThreadId()
+	{
+		return thread_.get_id();
+	}
+	explicit XThread(): tasksXLock_(0)
 	{
 		taskmanager_ = TaskManager::makeShared();
 		exitFlag_.store(false);
@@ -40,8 +44,9 @@ public:
 					setStatus(State::Waitting);
 					tasksXLock_.acquire();//等待任务
 					setStatus(State::Running);
+					std::lock_guard guard(taskManagerMutex_);
 					auto res = taskmanager_->execute();
-				
+					std::cout << "use thread id :" << std::this_thread::get_id() << std::endl;
 				} });
 
 		setStatus(State::Exited);

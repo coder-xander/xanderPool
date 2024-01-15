@@ -23,6 +23,6 @@ public:
     }
 private:
     std::mutex mutex_;
-    std::atomic_int count_;
+    int count_;
     std::condition_variable con_;
 };

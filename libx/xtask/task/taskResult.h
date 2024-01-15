@@ -12,53 +12,59 @@
 class TaskResult
 {
 public:
-    static std::shared_ptr<TaskResult> makeShard(size_t id, std::shared_ptr<std::promise<std::any>> resultFture)
+    static std::shared_ptr<TaskResult> makeShard(size_t id, std::shared_ptr<std::promise<std::any>> resultPromise)
     {
-        return std::make_shared<TaskResult>(id, resultFture);
+        return std::make_shared<TaskResult>(id, resultPromise);
     }
-    TaskResult(size_t id, std::shared_ptr<std::promise<std::any>> resultFuture) : id_(id), resultFuture_(resultFuture) {}
+    TaskResult(size_t id, std::shared_ptr<std::promise<std::any>> resultPromise) : id_(id), resultPromise(resultPromise)
+    {
+        future_ = resultPromise->get_future();
+    }
     auto getId() const { return id_; }
     ~TaskResult() { std::cout << " ~ExecuteResult" << std::endl; }
-    const std::any& toAny() const { return resultFuture_->get_future().get(); }
     void setId(size_t id) { id_ = id; };
     template <typename T>
-    T to() const
+    T to() 
     {
-      
-        if (resultFuture_->get_future().get().type() != typeid(T))
+
+        if (future_.get().type() != typeid(T))
         {
             throw std::bad_cast();
         }
-        return std::any_cast<T>(resultFuture_->get_future().get());
+        return std::any_cast<T>(future_.get());
     }
-    std::string toString() const
+    std::string toString() 
     {
+   
+
         return to<std::string>();
     }
-    int toInt() const
+    int toInt() 
     {
         return to<int>();
     }
-    float toFloat() const
+    float toFloat() 
     {
         return to<float>();
     }
-    double toDouble() const
+    double toDouble() 
     {
         return to<double>();
     }
-    bool toBool() const
+    bool toBool() 
     {
         return to<bool>();
     }
-    std::shared_ptr<std::promise<std::any>>getResultFuture()
+    std::shared_ptr<std::promise<std::any>>getResultPromise()
     {
-        std::lock_guard lock(resultFutureMutex_);
-        return resultFuture_;
+        std::lock_guard lock(resultPromiseMutex_);
+        return resultPromise;
     }
 private:
-    std::optional<size_t> id_;
-    std::mutex resultFutureMutex_;
-    std::shared_ptr<std::promise<std::any>> resultFuture_;
+    size_t id_;
+    std::mutex resultPromiseMutex_;
+    std::shared_ptr<std::promise<std::any>> resultPromise;
+    std::future<std::any> future_;
 };
 using TaskResultPtr = std::shared_ptr<TaskResult>;
+// using TaskResultWeakPtr = std::weak_ptr<TaskResult>;

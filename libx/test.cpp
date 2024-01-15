@@ -20,8 +20,8 @@ public:
 	}
 	std::string memberFunc(int a, double b)
 	{
-		std::cout << "Sum memberFunc" << std::endl;
-		return std::to_string(a) + std::to_string(b);
+		std::cout << "run member function !" << std::endl;
+		return "function add :"+std::to_string(a) + std::to_string(b);
 	}
 };
 int main()
@@ -31,15 +31,14 @@ int main()
 	ClassA ca;
 	// 添加一个全局函数
 	std::vector<TaskResultPtr> results;
-	for (int j = 0; j < 10000; ++j)
+	for (int j = 0; j < 10; ++j)
 	{
-		auto r1 = xpoPool.acceptTask([](int x, int y)
-			{ std::cout << "Sum 33333333333333333" << std::endl;
-		return std::to_string(x + y); },
+		auto r1 = xpoPool.acceptTask([j](int x, int y)
+			{ std::cout << "run lambda !" << std::endl;
+		return "lamda add res num :"+std::to_string(j); },
 			1, 2);
 		// 添加一个成员函数
 		auto r2 = xpoPool.acceptTask(&ClassA::memberFunc, &ca, 1, 3.4);
-		std::cout << "add" << std::to_string(j) << std::endl;
 		results.push_back(r1);
 		results.push_back(r2);
 	}

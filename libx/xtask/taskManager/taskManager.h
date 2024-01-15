@@ -21,7 +21,7 @@ public:
     TaskResultPtr add(F &&function, Args &&...args)
     {
         using ReturnType = typename  std::invoke_result_t<F, Args...>;
-        std::shared_ptr<std::promise<std::any>> promisePtr;//异步
+        auto promisePtr = std::make_shared<std::promise<std::any>>();//异步
         auto duration = std::chrono::system_clock::now().time_since_epoch();
         auto now = std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count();
         size_t taskId = std::hash<decltype(now)>()(now);
@@ -64,21 +64,17 @@ public:
 
         }
     }
-    std::any  execute()
+    TaskBasePtr  execute()
     {
-        auto task = tasks_.tryPop();
-        if (task.has_value())
+        auto taskOpt = tasks_.tryPop();
+        if (taskOpt.has_value())
         {
-            auto any = task.value()->run();
-            task.value()->getTaskResult()->getResultFuture()->set_value(any);
-            return   any;
+            auto taskPtr = taskOpt.value()->run();
+           
+            return   taskPtr;
 
         }
-        else
-        {
-            throw std::runtime_error("Task not found.");
-            return nullptr;
-        }
+        return nullptr;
     }
     std::any  execute(size_t taskId)
     {

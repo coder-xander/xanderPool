@@ -5,11 +5,11 @@
 #include <any>
 #include <future>
 /// @brief 任务的基类
-class TaskBase
+class TaskBase:public  std::enable_shared_from_this<TaskBase>
 {
 public:
     virtual ~TaskBase() = default;
-    virtual std::any run() = 0;
+    virtual std::shared_ptr<TaskBase> run() = 0;
     virtual size_t getId() = 0;
     virtual void  setTaskResult(TaskResultPtr taskResultPtr) = 0;
     virtual TaskResultPtr getTaskResult() = 0;
@@ -29,9 +29,11 @@ public:
     {
         std::cout << " ~Task" << std::endl;
     }
-    std::any run() override
+    std::shared_ptr<TaskBase>  run() override
     {
-        return func_();
+        std::lock_guard lock(taskResultMutex_);
+        taskResultPtr_->getResultPromise()->set_value(func_());
+        return shared_from_this();
     }
     size_t getId() override
     {
@@ -39,16 +41,19 @@ public:
     }
     void setTaskResult(TaskResultPtr taskResultPtr) override
     {
+        std::lock_guard lock(taskResultMutex_);
+
        taskResultPtr_ = taskResultPtr;
     }
     TaskResultPtr getTaskResult() override
     {
-
+        std::lock_guard lock(taskResultMutex_);
         return taskResultPtr_;
     }
 private:
     size_t id_;
     std::function<R()> func_;
     TaskResultPtr taskResultPtr_;
+    std::mutex taskResultMutex_;
 };
 using TaskBasePtr = std::shared_ptr<TaskBase>;
