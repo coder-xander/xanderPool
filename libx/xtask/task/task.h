@@ -1,6 +1,5 @@
 ﻿#pragma once
 #include "taskResult.h"
-#include "taskId.h"
 #include <memory>
 #include <functional>
 #include <any>
@@ -11,9 +10,9 @@ class TaskBase
 public:
     virtual ~TaskBase() = default;
     virtual std::any run() = 0;
-    virtual TaskIdPtr getId() = 0;
-    virtual void  setTaskResultPtr(TaskResultPtr taskResultPtr) = 0;
-    virtual TaskResultPtr getTaskResultPtr() = 0;
+    virtual size_t getId() = 0;
+    virtual void  setTaskResult(TaskResultPtr taskResultPtr) = 0;
+    virtual TaskResultPtr getTaskResult() = 0;
 };
 
 /// @brief 任务实现类
@@ -24,7 +23,7 @@ template <typename F, typename R, typename... Args>
 class Task final : public TaskBase
 {
 public:
-    explicit Task(TaskIdPtr id, F&& function, Args &&...args)
+    explicit Task(size_t id, F&& function, Args &&...args)
         : id_(id), func_(std::bind(std::forward<F>(function), std::forward<Args>(args)...)) {}
     ~Task() override
     {
@@ -34,21 +33,21 @@ public:
     {
         return func_();
     }
-    TaskIdPtr getId() override
+    size_t getId() override
     {
         return id_;
     }
-    void setTaskResultPtr(TaskResultPtr taskResultPtr) override
+    void setTaskResult(TaskResultPtr taskResultPtr) override
     {
-        taskResultPtr_ = taskResultPtr;
-
+       taskResultPtr_ = taskResultPtr;
     }
-    TaskResultPtr getTaskResultPtr() override
+    TaskResultPtr getTaskResult() override
     {
+
         return taskResultPtr_;
     }
 private:
-    TaskIdPtr id_;
+    size_t id_;
     std::function<R()> func_;
     TaskResultPtr taskResultPtr_;
 };

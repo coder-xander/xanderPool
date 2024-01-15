@@ -2,24 +2,25 @@
 #include <any>
 #include <functional>
 #include <future>
-
-#include "taskId.h"
 #include <iostream>
+#include <optional>
+#include <memory>
+#include <iostream>
+
 /// @brief 执行结果的返回值
 /// @author xander
 class TaskResult
 {
 public:
-    static std::shared_ptr<TaskResult> makeShard(TaskIdPtr id, std::shared_ptr<std::promise<std::any>> resultFture)
+    static std::shared_ptr<TaskResult> makeShard(size_t id, std::shared_ptr<std::promise<std::any>> resultFture)
     {
         return std::make_shared<TaskResult>(id, resultFture);
     }
-    TaskResult(TaskIdPtr id, std::shared_ptr<std::promise<std::any>> resultFuture) : id_(id), resultFuture_(resultFuture) {}
-    TaskResult(TaskId id, std::shared_ptr<std::promise<std::any>> resultFuture) : id_(std::make_shared<TaskId>(id)), resultFuture_(resultFuture) {}
+    TaskResult(size_t id, std::shared_ptr<std::promise<std::any>> resultFuture) : id_(id), resultFuture_(resultFuture) {}
     auto getId() const { return id_; }
     ~TaskResult() { std::cout << " ~ExecuteResult" << std::endl; }
     const std::any& toAny() const { return resultFuture_->get_future().get(); }
-    void setId(TaskIdPtr id) { id_ = id; };
+    void setId(size_t id) { id_ = id; };
     template <typename T>
     T to() const
     {
@@ -52,10 +53,12 @@ public:
     }
     std::shared_ptr<std::promise<std::any>>getResultFuture()
     {
+        std::lock_guard lock(resultFutureMutex_);
         return resultFuture_;
     }
 private:
-    TaskIdPtr id_;
+    std::optional<size_t> id_;
+    std::mutex resultFutureMutex_;
     std::shared_ptr<std::promise<std::any>> resultFuture_;
 };
 using TaskResultPtr = std::shared_ptr<TaskResult>;

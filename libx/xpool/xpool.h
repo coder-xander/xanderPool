@@ -29,7 +29,7 @@ public:
         for (XThreadPtr e : threadsPool_)
         {
             //如果空闲，直接用,也就是第一个闲着的线程
-            if (e->isWaitting())
+            if (e->isWaiting())
             {
                 return e;
             }

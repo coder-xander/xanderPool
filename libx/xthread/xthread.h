@@ -14,8 +14,6 @@ public:
 
 	};
 private:
-	
-
 	//信号量锁，用户消费、生产task
 	XLock tasksXLock_;
 	//管理器互斥量
@@ -42,9 +40,8 @@ public:
 					setStatus(State::Waitting);
 					tasksXLock_.acquire();//等待任务
 					setStatus(State::Running);
-					auto task = taskmanager_->nextTask();
 					auto res = taskmanager_->execute();
-					task->getTaskResultPtr()->getResultFuture()->set_value(res);
+				
 				} });
 
 		setStatus(State::Exited);
@@ -66,7 +63,7 @@ public:
 	{
 		return std::make_shared<XThread>();
 	}
-	bool isWaitting()
+	bool isWaiting()
 	{
 		std::lock_guard guard(statusMutex_);
 		return status_ == Waitting;
