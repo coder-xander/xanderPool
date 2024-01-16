@@ -28,7 +28,7 @@ public:
 int main()
 {
 
-	XPool xpoPool;
+	auto  xpoPool =  new XPool();
 
 	ClassA ca;
 	// 添加一个全局函数
@@ -36,9 +36,9 @@ int main()
 
 	//记录开始时间
 	auto start = std::chrono::system_clock::now();
-	for (int j = 0; j < 10000; ++j)
+	for (int j = 0; j < 10; ++j)
 	{
-		auto r1 = xpoPool.addTask([j](int x, int y)
+		auto r1 = xpoPool->addTask([j](int x, int y)
 			{
 			// std::cout << "run lambda !"<<"线程id"<<std::this_thread::get_id()<< std::endl;
 
@@ -65,7 +65,11 @@ int main()
 		std::cout << "获得结果：" << e->toString() << std::endl;
 
 	}
+	results.clear();
+	
 	std::cout << "处理完成 一共任务:" << std::to_string(results.size()) << std::endl;
+	delete xpoPool;
 	system("pause");
 	return 0;
+
 }

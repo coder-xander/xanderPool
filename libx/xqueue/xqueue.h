@@ -19,7 +19,10 @@ public:
 		std::lock_guard<std::mutex> lock(other.mutex_);
 		deque_ = other.deque_;
 	}
-
+	~XQueue()
+	{
+		std::cout << "~XQueue" << std::endl;
+	}
 	void enqueue(const T &value)
 	{
 		std::lock_guard<std::mutex> lock(mutex_);

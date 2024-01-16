@@ -57,6 +57,8 @@ public:
 	~XThread()
 	{
 		std::cout << "~XThread";
+		tasksXLock_.release();
+		tasksXLock_.release();
 		exitFlag_.store(true);
 		if (thread_.joinable())
 		{

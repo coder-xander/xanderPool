@@ -19,6 +19,10 @@ public:
     {
         return std::make_shared<TaskManager>();
     }
+    ~TaskManager()
+    {
+        std::cout << "~TaskManager" << std::endl;
+    }
     size_t generateTaskId()
     {
         auto duration = std::chrono::system_clock::now().time_since_epoch();
