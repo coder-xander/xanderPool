@@ -55,9 +55,8 @@ public:
 			});
 
 	}
-	~XThread()
+	void exit()
 	{
-		// std::cout << "~XThread";
 		tasksXLock_.release();
 		tasksXLock_.release();
 		exitFlag_.store(true);
@@ -66,6 +65,12 @@ public:
 			thread_.join();
 		}
 		setStatus(State::Exited);
+	}
+	~XThread()
+	{
+		exit();
+		// std::cout << "~XThread";
+
 	}
 
 public:

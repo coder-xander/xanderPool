@@ -8,9 +8,20 @@ class XPool
 private:
     std::mutex threadsMutex_;
     std::vector<XThreadPtr> threadsPool_;
-
+    size_t nextThreadIndex_ = 0;
 public:
-    explicit XPool(size_t threadCount = 10)
+    XPool()
+    {
+        //获取cpu核心数，创建这么多线程
+        auto threadCount = std::thread::hardware_concurrency();
+        for (size_t i = 0; i < threadCount; i++)
+        {
+            threadsPool_.push_back(XThread::makeShared());
+        }
+
+
+    }
+    explicit XPool(size_t threadCount)
     {
         for (size_t i = 0; i < threadCount; i++)
         {
@@ -22,7 +33,21 @@ public:
         std::cout << "~XPool" << std::endl;
         threadsPool_.clear();
     }
-    size_t nextThreadIndex_ = 0;
+    ///@brief 增加一个工作的线程
+    void addAWorkThread()
+    {
+        threadsPool_.push_back(XThread::makeShared());
+    }
+    ///@brief 减少一个工作的线程
+    void removeAWorkThread()
+    {
+        //寻找一个空闲的线程，或者任务数量最少的线程
+        auto thread = decideThreadIdlePriority();
+        //移除这个线程
+        thread->exit();
+        threadsPool_.erase(std::find(threadsPool_.begin(), threadsPool_.end(), thread));
+    }
+
     ///@brief 线程池的调度1，决定一个线程用于接受一个任务
     XThreadPtr decideAThreadAverage()
     {

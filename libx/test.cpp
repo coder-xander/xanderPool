@@ -36,7 +36,7 @@ int main()
 
 	//记录开始时间
 	auto start = std::chrono::system_clock::now();
-	for (int j = 0; j < 200000; ++j)
+	for (int j = 0; j < 100; ++j)
 	{
 		auto r1 = xpoPool->addTask([j](int x, int y)
 			{
