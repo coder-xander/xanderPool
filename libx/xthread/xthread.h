@@ -1,4 +1,5 @@
 ﻿#pragma once
+#include <shared_mutex>
 #include "../xtask/task/task.h"
 #include "../xtask/taskManager/taskManager.h"
 #include "../xlock/xlock.h"
@@ -22,8 +23,8 @@ private:
 	std::thread thread_;
 	//线程的状态
 	State status_;
-	//获取状态的互斥量
-	std::mutex statusMutex_;
+	//获取状态的读写锁。
+	std::shared_mutex statusMutex_;
 	//任务管理器，每个线程都有一个管理器
 	TaskManagerPtr taskmanager_;
 public:
@@ -45,7 +46,7 @@ public:
 					// std::cout << "thread status:" << status_ << std::endl;
 					tasksXLock_.acquire();//等待任务
 					setStatus(State::Running);
-					auto res = taskmanager_->execute();
+					auto res = taskmanager_->executeFirst();
 					std::cout << "use thread id :" << std::this_thread::get_id() << std::endl;
 				}
 				setStatus(State::Exited);
@@ -70,7 +71,6 @@ public:
 	{
 		exit();
 		// std::cout << "~XThread";
-
 	}
 
 public:

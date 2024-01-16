@@ -6,7 +6,7 @@
 class XPool
 {
 private:
-    std::mutex threadsMutex_;
+    std::shared_mutex threadsMutex_;
     std::vector<XThreadPtr> threadsPool_;
     size_t nextThreadIndex_ = 0;
 public:

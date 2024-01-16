@@ -73,7 +73,7 @@ public:
 
         }
     }
-    TaskBasePtr  execute()
+    TaskBasePtr  executeFirst()
     {
         auto taskOpt = tasks_.tryPop();
         if (taskOpt.has_value())
