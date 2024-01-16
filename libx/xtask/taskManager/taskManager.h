@@ -1,12 +1,15 @@
 ﻿#pragma once
 /// @brief 任务管理类
 
+#include <any>
 #include <chrono>
 #include <future>
 
-#include "../task/task.h"
 #include "../../xqueue/xqueue.h"
 ///@brief 只给一个线程使用，所以不用加锁
+#include "../task/taskResult.h"
+#include "../task/task.h"
+///
 class TaskManager
 {
 private:
@@ -18,10 +21,9 @@ public:
     }
 
     template <typename F, typename... Args>
-    TaskResultPtr add(F &&function, Args &&...args)
+    TaskResultPtr add(F&& function, Args &&...args)
     {
         using ReturnType = typename  std::invoke_result_t<F, Args...>;
-        auto promisePtr = std::make_shared<std::promise<std::any>>();//异步
         auto duration = std::chrono::system_clock::now().time_since_epoch();
         auto now = std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count();
         size_t taskId = std::hash<decltype(now)>()(now);
@@ -33,7 +35,8 @@ public:
         }
         auto task = std::make_shared<Task<F, ReturnType, Args...>>(taskId, std::forward<F>(function), std::forward<Args>(args)...);
         tasks_.enqueue(task);
-        TaskResultPtr taskResultPtr = TaskResult::makeShard(taskId,promisePtr);
+        TaskResultPtr taskResultPtr = TaskResult::makeShard(taskId, std::move(task->getTaskPackaged().get_future()));
+
         task->setTaskResult(taskResultPtr);
         return taskResultPtr;
     }
@@ -70,7 +73,7 @@ public:
         if (taskOpt.has_value())
         {
             auto taskPtr = taskOpt.value()->run();
-           
+
             return   taskPtr;
 
         }
@@ -81,17 +84,17 @@ public:
         auto task = findTask(taskId);
         if (task)
         {
-            return task->run(); 
+            return task->run();
         }
         throw std::runtime_error("Task not found.");
     }
     TaskBasePtr findTask(size_t taskId)
     {
         return tasks_.find([taskId](auto task)
-            { return task->getId()== taskId; });
+            { return task->getId() == taskId; });
     }
     bool removeTask(size_t taskId);
-    size_t getTaskCount(){ return tasks_.size(); }
+    size_t getTaskCount() { return tasks_.size(); }
     void clear();
 };
 using TaskManagerPtr = std::shared_ptr<TaskManager>;

@@ -2,10 +2,10 @@
 
 
 
-bool TaskManager::removeTask(TaskIdPtr taskId)
+bool TaskManager::removeTask(size_t taskId)
 {
-    return tasks_.removeOne([taskId](const TaskBasePtr &task)
-        { return task->getId()->value() == taskId->value(); });
+    return tasks_.removeOne([taskId](const TaskBasePtr& task)
+        { return task->getId() == taskId; });
 }
 
 
