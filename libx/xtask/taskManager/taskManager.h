@@ -21,7 +21,7 @@ public:
     }
     ~TaskManager()
     {
-        std::cout << "~TaskManager" << std::endl;
+        // std::cout << "~TaskManager" << std::endl;
     }
     size_t generateTaskId()
     {
@@ -38,7 +38,7 @@ public:
     template <typename F, typename... Args>
     TaskResultPtr addTask(F&& function, Args &&...args)
     {
-        
+
         using ReturnType = typename  std::invoke_result_t<F, Args...>;
         size_t taskId = generateTaskId();
         auto task = std::make_shared<Task<F, ReturnType, Args...>>(taskId, std::forward<F>(function), std::forward<Args>(args)...);

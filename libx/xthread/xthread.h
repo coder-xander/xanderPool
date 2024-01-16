@@ -31,6 +31,7 @@ public:
 	{
 		return thread_.get_id();
 	}
+
 	explicit XThread() : tasksXLock_(0)
 	{
 		taskmanager_ = TaskManager::makeShared();
@@ -50,13 +51,13 @@ public:
 				setStatus(State::Exited);
 				//打印
 				// std::cout << "thread status:" << status_ << std::endl;
-				
+
 			});
 
 	}
 	~XThread()
 	{
-		std::cout << "~XThread";
+		// std::cout << "~XThread";
 		tasksXLock_.release();
 		tasksXLock_.release();
 		exitFlag_.store(true);

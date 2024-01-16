@@ -21,6 +21,10 @@ public:
         ++count_;
         con_.notify_one();
     }
+    ~XLock()
+    {
+        // std::cout<<"~XLock"<<std::endl;
+    }
 private:
     std::mutex mutex_;
     int count_;

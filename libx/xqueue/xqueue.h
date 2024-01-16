@@ -14,16 +14,16 @@ private:
 
 public:
 	XQueue() = default;
-	XQueue(const XQueue &other)
+	XQueue(const XQueue& other)
 	{
 		std::lock_guard<std::mutex> lock(other.mutex_);
 		deque_ = other.deque_;
 	}
 	~XQueue()
 	{
-		std::cout << "~XQueue" << std::endl;
+		// std::cout << "~XQueue" << std::endl;
 	}
-	void enqueue(const T &value)
+	void enqueue(const T& value)
 	{
 		std::lock_guard<std::mutex> lock(mutex_);
 		deque_.push_back(std::move(value));
@@ -73,7 +73,7 @@ public:
 		return deque_.size();
 	}
 
-	T find(std::function<bool(const T &)> adptor)
+	T find(std::function<bool(const T&)> adptor)
 	{
 		std::lock_guard<std::mutex> lock(mutex_);
 		for (T item : deque_)
@@ -83,10 +83,10 @@ public:
 		}
 		return T();
 	}
-	bool removeOne(std::function<bool(const T &)> adptor)
+	bool removeOne(std::function<bool(const T&)> adptor)
 	{
 		std::lock_guard<std::mutex> lock(mutex_);
-		for (const T &item : deque_)
+		for (const T& item : deque_)
 		{
 			if (adptor(item))
 				deque_.erase(std::remove(deque_.begin(), deque_.end(), item), deque_.end());

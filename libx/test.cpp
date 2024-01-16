@@ -28,7 +28,7 @@ public:
 int main()
 {
 
-	auto  xpoPool =  new XPool();
+	auto  xpoPool = new XPool();
 
 	ClassA ca;
 	// 添加一个全局函数
@@ -36,17 +36,17 @@ int main()
 
 	//记录开始时间
 	auto start = std::chrono::system_clock::now();
-	for (int j = 0; j < 10; ++j)
+	for (int j = 0; j < 200000; ++j)
 	{
 		auto r1 = xpoPool->addTask([j](int x, int y)
 			{
-			// std::cout << "run lambda !"<<"线程id"<<std::this_thread::get_id()<< std::endl;
+				// std::cout << "run lambda !"<<"线程id"<<std::this_thread::get_id()<< std::endl;
 
 				std::thread::id this_id = std::this_thread::get_id();
 				std::ostringstream ss;
 				ss << this_id;
 				std::string strThreadId = ss.str();
-		return "lamda add res num :" + std::to_string(j)+"来自线程: "+ strThreadId; },
+				return "lamda add res num :" + std::to_string(j) + "来自线程: " + strThreadId; },
 			1, 2);
 		// 添加一个成员函数
 		// auto r2 = xpoPool.acceptTask(&ClassA::memberFunc, &ca, 1, 3.4);
@@ -58,7 +58,7 @@ int main()
 	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 	std::cout << "添加任务花费的时间：" << duration << "ms" << std::endl;
 
-	// 也可以添加全局函数
+	// 也可以添加全局函数、成员函数
 	for (auto e : results)
 	{
 
@@ -66,8 +66,10 @@ int main()
 
 	}
 	results.clear();
-	
 	std::cout << "处理完成 一共任务:" << std::to_string(results.size()) << std::endl;
+	end = std::chrono::system_clock::now();
+	duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+	std::cout << "测试流程完成总时间：" << duration << "ms" << std::endl;
 	delete xpoPool;
 	system("pause");
 	return 0;

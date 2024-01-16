@@ -20,7 +20,10 @@ public:
 
     }
     auto getId() const { return id_; }
-    ~TaskResult() { std::cout << " ~ExecuteResult" << std::endl; }
+    ~TaskResult()
+    {
+        // std::cout << " ~ExecuteResult" << std::endl;
+    }
     void setId(size_t id) { id_ = id; };
     template <typename T>
     T to()
