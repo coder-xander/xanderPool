@@ -16,8 +16,6 @@ public:
 private:
 	//信号量锁，用户消费、生产task
 	XLock tasksXLock_;
-	//管理器互斥量
-	std::mutex taskManagerMutex_;
 	//线程退出标志
 	std::atomic_bool exitFlag_;
 	//线程
@@ -46,7 +44,6 @@ public:
 					// std::cout << "thread status:" << status_ << std::endl;
 					tasksXLock_.acquire();//等待任务
 					setStatus(State::Running);
-					std::lock_guard guard(taskManagerMutex_);
 					auto res = taskmanager_->execute();
 					std::cout << "use thread id :" << std::this_thread::get_id() << std::endl;
 				}
@@ -92,19 +89,18 @@ public:
 		status_ = s;
 	}
 
-	/// @brief 接受这个任务,用这个线程的任务管理器来处理
-	/// @return 返回任务id
+	/// @brief 接受这个任务,用这个线程的任务管理器来处理，可能被任意线程调用。
+	/// @return 返回任务结果的封装
 	template <typename F, typename... Args>
 	TaskResultPtr addTask(F&& f, Args &&...args)
 	{
-		std::lock_guard guard(taskManagerMutex_);
+
 		auto resultPtr = taskmanager_->addTask(std::forward<F>(f), std::forward<Args>(args)...);
 		tasksXLock_.release();
 		return resultPtr;
 	}
 	size_t getTaskCount()
 	{
-		std::lock_guard lock(taskManagerMutex_);
 		return  taskmanager_->getTaskCount();
 
 	}

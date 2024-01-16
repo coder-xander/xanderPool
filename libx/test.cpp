@@ -36,13 +36,17 @@ int main()
 
 	//记录开始时间
 	auto start = std::chrono::system_clock::now();
-	for (int j = 0; j < 1000; ++j)
+	for (int j = 0; j < 10000; ++j)
 	{
 		auto r1 = xpoPool.addTask([j](int x, int y)
 			{
 			// std::cout << "run lambda !"<<"线程id"<<std::this_thread::get_id()<< std::endl;
-		this_thread::sleep_for(std::chrono::milliseconds(100));
-		return "lamda add res num :" + std::to_string(j); },
+
+				std::thread::id this_id = std::this_thread::get_id();
+				std::ostringstream ss;
+				ss << this_id;
+				std::string strThreadId = ss.str();
+		return "lamda add res num :" + std::to_string(j)+"来自线程: "+ strThreadId; },
 			1, 2);
 		// 添加一个成员函数
 		// auto r2 = xpoPool.acceptTask(&ClassA::memberFunc, &ca, 1, 3.4);
