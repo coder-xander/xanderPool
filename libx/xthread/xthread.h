@@ -33,7 +33,7 @@ public:
 	{
 		return thread_.get_id();
 	}
-	explicit XThread(): tasksXLock_(0)
+	explicit XThread() : tasksXLock_(0)
 	{
 		taskmanager_ = TaskManager::makeShared();
 		exitFlag_.store(false);
@@ -42,14 +42,20 @@ public:
 				while (!exitFlag_.load())
 				{
 					setStatus(State::Waitting);
+					//打印状态
+					// std::cout << "thread status:" << status_ << std::endl;
 					tasksXLock_.acquire();//等待任务
 					setStatus(State::Running);
 					std::lock_guard guard(taskManagerMutex_);
 					auto res = taskmanager_->execute();
 					std::cout << "use thread id :" << std::this_thread::get_id() << std::endl;
-				} });
+				}
+				setStatus(State::Exited);
+				//打印
+				// std::cout << "thread status:" << status_ << std::endl;
+				
+			});
 
-		setStatus(State::Exited);
 	}
 	~XThread()
 	{
@@ -63,7 +69,7 @@ public:
 	}
 
 public:
-	
+
 	static std::shared_ptr<XThread> makeShared()
 	{
 		return std::make_shared<XThread>();
@@ -89,10 +95,10 @@ public:
 	/// @brief 接受这个任务,用这个线程的任务管理器来处理
 	/// @return 返回任务id
 	template <typename F, typename... Args>
-	TaskResultPtr acceptTask(F &&f, Args &&...args)
+	TaskResultPtr addTask(F&& f, Args &&...args)
 	{
 		std::lock_guard guard(taskManagerMutex_);
-		auto resultPtr = taskmanager_->add(std::forward<F>(f), std::forward<Args>(args)...);
+		auto resultPtr = taskmanager_->addTask(std::forward<F>(f), std::forward<Args>(args)...);
 		tasksXLock_.release();
 		return resultPtr;
 	}

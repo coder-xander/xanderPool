@@ -19,28 +19,30 @@ public:
     {
         return std::make_shared<TaskManager>();
     }
-
-    template <typename F, typename... Args>
-    TaskResultPtr add(F&& function, Args &&...args)
+    size_t generateTaskId()
     {
-        using ReturnType = typename  std::invoke_result_t<F, Args...>;
         auto duration = std::chrono::system_clock::now().time_since_epoch();
         auto now = std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count();
-        size_t taskId = std::hash<decltype(now)>()(now);
+        auto taskId = std::hash<decltype(now)>()(now);
         while (findTask(taskId) != nullptr)
         {
-            duration = std::chrono::system_clock::now().time_since_epoch();
-            now = std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count();
-            taskId = std::hash<decltype(now)>()(now);
+            taskId = generateTaskId();
         }
+        return taskId;
+    }
+
+    template <typename F, typename... Args>
+    TaskResultPtr addTask(F&& function, Args &&...args)
+    {
+        
+        using ReturnType = typename  std::invoke_result_t<F, Args...>;
+        size_t taskId = generateTaskId();
         auto task = std::make_shared<Task<F, ReturnType, Args...>>(taskId, std::forward<F>(function), std::forward<Args>(args)...);
         tasks_.enqueue(task);
         TaskResultPtr taskResultPtr = TaskResult::makeShard(taskId, std::move(task->getTaskPackaged().get_future()));
-
         task->setTaskResult(taskResultPtr);
         return taskResultPtr;
     }
-
     std::vector<std::any > executeAll()
     {
         std::vector<std::any > results;

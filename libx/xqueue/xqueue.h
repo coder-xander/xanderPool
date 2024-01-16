@@ -42,6 +42,7 @@ public:
 	std::optional<T> tryPop()
 	{
 		std::lock_guard<std::mutex> lock(mutex_);
+		//打印线程id和任务数量
 		if (deque_.empty())
 		{
 			return std::nullopt;
