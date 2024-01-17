@@ -2,10 +2,10 @@
 #include <mutex>
 #include <atomic>
 #include <condition_variable>
-class XLock
+class XSemaphoreGuard
 {
 public:
-    XLock(int count) : count_(count) {}
+    XSemaphoreGuard(int count) : count_(count) {}
     void acquire()
     {
         std::unique_lock<std::mutex> lock(mutex_);
@@ -21,9 +21,14 @@ public:
         ++count_;
         con_.notify_one();
     }
-    ~XLock()
+    ~XSemaphoreGuard()
     {
-        // std::cout<<"~XLock"<<std::endl;
+        // std::cout<<"~XSemaphoreGuard"<<std::endl;
+    }
+    void clear()
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        count_ = 0;
     }
 private:
     std::mutex mutex_;

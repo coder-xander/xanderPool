@@ -3,14 +3,14 @@
 # 子项目xqueue
 add_subdirectory(xqueue)
 add_subdirectory(xpool)
-add_subdirectory(xlock)
+add_subdirectory(xsemaphore_guard)
 add_subdirectory(xtask)
 add_subdirectory(xthread)
 # 主项目
 add_executable (XanderThreadPool "test.cpp" )
 # 链接
 target_link_libraries(xqueue)
-target_link_libraries(xlock)
+target_link_libraries(xSemaphoreGuard)
 target_link_libraries(xtask)
 target_link_libraries(xthread)
 target_link_libraries(xpool)

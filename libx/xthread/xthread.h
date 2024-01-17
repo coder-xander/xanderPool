@@ -2,7 +2,7 @@
 #include <shared_mutex>
 #include "../xtask/task/task.h"
 #include "../xtask/taskManager/taskManager.h"
-#include "../xlock/xlock.h"
+#include "../xsemaphore_guard/XSemaphoreGuard.h"
 
 class XThread
 {
@@ -16,7 +16,7 @@ public:
 	};
 private:
 	//信号量锁，用户消费、生产task
-	XLock tasksXLock_;
+	XSemaphoreGuard tasksSemaphoreGuard_;
 	//线程退出标志
 	std::atomic_bool exitFlag_;
 	//线程
@@ -33,7 +33,7 @@ public:
 		return thread_.get_id();
 	}
 
-	explicit XThread() : tasksXLock_(0)
+	explicit XThread() : tasksSemaphoreGuard_(0)
 	{
 		taskmanager_ = TaskManager::makeShared();
 		exitFlag_.store(false);
@@ -44,7 +44,7 @@ public:
 					setStatus(State::Waitting);
 					//打印状态
 					// std::cout << "thread status:" << status_ << std::endl;
-					tasksXLock_.acquire();//等待任务
+					tasksSemaphoreGuard_.acquire();//等待任务
 					setStatus(State::Running);
 					auto res = taskmanager_->executeFirst();
 					std::cout << "use thread id :" << std::this_thread::get_id() << std::endl;
@@ -58,8 +58,8 @@ public:
 	}
 	void exit()
 	{
-		tasksXLock_.release();
-		tasksXLock_.release();
+		tasksSemaphoreGuard_.release();
+		tasksSemaphoreGuard_.release();
 		exitFlag_.store(true);
 		if (thread_.joinable())
 		{
@@ -104,7 +104,7 @@ public:
 	{
 
 		auto resultPtr = taskmanager_->addTask(std::forward<F>(f), std::forward<Args>(args)...);
-		tasksXLock_.release();
+		tasksSemaphoreGuard_.release();
 		return resultPtr;
 	}
 	size_t getTaskCount()
