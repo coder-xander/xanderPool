@@ -43,7 +43,7 @@ public:
         size_t taskId = generateTaskId();
         auto task = std::make_shared<Task<F, ReturnType, Args...>>(taskId, std::forward<F>(function), std::forward<Args>(args)...);
         tasks_.enqueue(task);
-        TaskResultPtr taskResultPtr = TaskResult::makeShard(taskId, std::move(task->getTaskPackaged().get_future()));
+        TaskResultPtr taskResultPtr = TaskResult::makeShared(taskId, std::move(task->getTaskPackaged().get_future()));
         task->setTaskResult(taskResultPtr);
         return taskResultPtr;
     }

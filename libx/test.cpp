@@ -73,7 +73,8 @@ int main()
 				std::ostringstream ss;
 				ss << this_id;
 				std::string strThreadId = ss.str();
-				return "lamda add res num :" + std::to_string(j) + "来自线程: " + strThreadId; },
+				return "lamda add res num :" + std::to_string(j) + "来自线程: " + strThreadId;
+			},
 			1, 2);
 		// 添加一个成员函数
 		// auto r2 = xpoPool.acceptTask(&ClassA::memberFunc, &ca, 1, 3.4);
@@ -91,7 +92,8 @@ int main()
 	{
 		std::lock_guard lock(resultsMutex_);
 
-		std::cout << "获得结果：" << e->toString() << std::endl;
+		auto basicString = e->toString();
+		std::cout << "获得结果：" << basicString.value() << std::endl;
 
 	}
 	std::cout << "处理完成 一共任务:" << std::to_string(results.size()) << std::endl;
