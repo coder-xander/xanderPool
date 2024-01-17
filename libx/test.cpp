@@ -1,11 +1,6 @@
-﻿
-
-#include <future>
-
+﻿#include <future>
 #include "xpool/xpool.h"
-#include "xtask/taskManager/taskManager.h"
-
-
+#include "xworker/xworker.h"
 using namespace std;
 class ClassA
 {
@@ -27,9 +22,7 @@ public:
 };
 int main()
 {
-
 	auto  xpoPool = new XPool();
-
 	ClassA ca;
 	// 添加一个全局函数
 	std::vector<TaskResultPtr> results;
@@ -65,7 +58,7 @@ int main()
 	// 	});
 	for (int j = 0; j < 10000; ++j)
 	{
-		auto r1 = xpoPool->addTask([j](int x, int y)
+		auto r1 = xpoPool->submit([j](int x, int y)
 			{
 				// std::cout << "run lambda !"<<"线程id"<<std::this_thread::get_id()<< std::endl;
 
@@ -91,7 +84,6 @@ int main()
 	for (auto e : results)
 	{
 		std::lock_guard lock(resultsMutex_);
-
 		auto basicString = e->toString();
 		std::cout << "获得结果：" << basicString.value() << std::endl;
 
@@ -102,8 +94,9 @@ int main()
 	std::cout << "测试流程完成总时间：" << duration << "ms" << std::endl;
 	results.clear();
 
-	delete xpoPool;
 	system("pause");
+	delete xpoPool;
+
 	return 0;
 
 }
