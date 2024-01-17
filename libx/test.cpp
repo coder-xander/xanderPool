@@ -1,7 +1,8 @@
 ﻿#include <future>
-#include "xpool/xpool.h"
-#include "xworker/xworker.h"
+#include "pool/xpool.h"
+#include "worker/worker.h"
 using namespace std;
+using namespace xander;
 class ClassA
 {
 public:
@@ -56,7 +57,7 @@ int main()
 	// 		}
 	// 		return std::string("dsdsds");
 	// 	});
-	for (int j = 0; j < 10000; ++j)
+	for (int j = 0; j < 100; ++j)
 	{
 		auto r1 = xpoPool->submit([j](int x, int y)
 			{

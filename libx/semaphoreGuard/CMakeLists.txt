@@ -1,3 +1,3 @@
 ﻿file(GLOB_RECURSE headerFiles "*.h")
 file(GLOB_RECURSE sourceFiles "*.cpp")
-add_library(xpool SHARED ${headerFiles} ${sourceFiles})
+add_library(SemaphoreGuard SHARED ${headerFiles} ${sourceFiles})
