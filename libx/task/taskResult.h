@@ -9,24 +9,17 @@
 /// @author xander
 namespace xander
 {
-
+    template<typename  R>
     class TaskResult
     {
     public:
-        static std::shared_ptr<TaskResult> makeShared(size_t id, std::future<std::any>&& future)
-        {
-            return std::make_shared<TaskResult>(id, std::move(future));
-        }
-        static std::shared_ptr<TaskResult> makeShared(size_t id, std::future<void>&& future)
+        static std::shared_ptr<TaskResult> makeShared(size_t id, std::future<R>&& future)
         {
             return std::make_shared<TaskResult>(id, std::move(future));
         }
 
-        TaskResult(size_t id, std::future<void>&& future) : id_(id), voidFuture_(std::move(future))
-        {
 
-        }
-        TaskResult(size_t id, std::future<std::any>&& future) : id_(id), anyFuture_(std::move(future))
+        TaskResult(size_t id, std::future<R>&& future) : id_(id), future_(std::move(future))
         {
 
         }
@@ -38,64 +31,27 @@ namespace xander
         void setId(size_t id) { id_ = id; };
 
 
-        template <typename T>
-        std::optional<T> to()
+        R value()
         {
-            if (anyFuture_.valid())
-            {
-                auto r = anyFuture_.get();
-                if (r.type() != typeid(T))
-                {
-                    throw std::bad_cast();
-                }
-                return std::any_cast<T>(r);
-            }
-            else
-            {
-                return std::nullopt;
-            }
+            return future_.get();
         }
 
-        std::optional<std::monostate> toVoid() {
-            if (voidFuture_.valid()) {
-                voidFuture_.get(); // Wait for the future to be ready
-                return std::monostate();
-            }
-            else {
-                return std::nullopt;
-            }
-        }
-        std::optional<std::string> toString()
-        {
-            return to<std::string>();
-        }
-
-        std::optional<int> toInt()
-        {
-            return to<int>();
-        }
-
-        std::optional<float> toFloat()
-        {
-            return to<float>();
-        }
-
-        std::optional<double> toDouble()
-        {
-            return to<double>();
-        }
-
-        std::optional<bool> toBool()
-        {
-            return to<bool>();
-        }
+        // std::optional<std::monostate> toVoid() {
+        //     if (voidFuture_.valid()) {
+        //         voidFuture_.get(); // Wait for the future to be ready
+        //         return std::monostate();
+        //     }
+        //     else {
+        //         return std::nullopt;
+        //     }
+        // }
 
     private:
         size_t id_;
-        std::future<std::any> anyFuture_;
-        std::future<void> voidFuture_;
+        std::future<R> future_;
     };
-    using TaskResultPtr = std::shared_ptr<TaskResult>;
+    template<typename R>
+    using TaskResultPtr = std::shared_ptr<TaskResult<R>>;
     // using TaskResultWeakPtr = std::weak_ptr<TaskResult>;
 
 }

@@ -81,8 +81,8 @@ namespace xander
 			return r;
 		}
 		/// @brief 线程池接受一个任务
-		template <typename F, typename... Args >
-		TaskResultPtr submit(F&& f, Args &&...args)
+		template <typename F, typename... Args, typename  Rt = typename  std::invoke_result_t < F, Args ...>>
+		TaskResultPtr<Rt> submit(F&& f, Args &&...args)
 		{
 			auto worker = decideWorkerIdlePriority();
 			return  worker->submit(std::forward<F>(f), std::forward<Args>(args)...);

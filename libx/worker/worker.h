@@ -66,14 +66,13 @@ namespace xander
             return taskId;
         }
 
-        template <typename F, typename... Args>
-        TaskResultPtr submit(F&& function, Args &&...args)
+        template <typename F, typename... Args, typename  ReturnType = typename  std::invoke_result_t<F, Args...>>
+        TaskResultPtr<ReturnType> submit(F&& function, Args &&...args)
         {
-            using ReturnType = typename  std::invoke_result_t<F, Args...>;
             size_t taskId = generateTaskId();
             auto task = std::make_shared<Task<F, ReturnType, Args...>>(taskId, std::forward<F>(function), std::forward<Args>(args)...);
             allTasks_.enqueue(task);
-            TaskResultPtr taskResultPtr = TaskResult::makeShared(taskId, std::move(task->getTaskPackaged().get_future()));
+            TaskResultPtr taskResultPtr = TaskResult<ReturnType>::makeShared(taskId, std::move(task->getTaskPackaged().get_future()));
             task->setTaskResult(taskResultPtr);
             xSemaphoreGuard_.release();
             return taskResultPtr;
