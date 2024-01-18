@@ -43,7 +43,7 @@ int main()
 		auto r1 = xpoPool->submit([j]()
 			{
 				// std::cout << "run lambda !"<<"线程id"<<std::this_thread::get_id()<< std::endl;
-
+				std::this_thread::sleep_for(std::chrono::milliseconds(300));
 				// std::thread::id this_id = std::this_thread::get_id();
 				// std::ostringstream ss;
 				// ss << this_id;
@@ -66,7 +66,6 @@ int main()
 	{
 		std::lock_guard lock(resultsMutex_);
 		// auto s = e->value();
-		e->value();
 		// std::cout << "获得结果：" << s << std::endl;
 
 	}
