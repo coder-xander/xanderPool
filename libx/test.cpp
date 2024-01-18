@@ -80,6 +80,7 @@ int main()
 
 	system("pause");
 	delete xpoPool;
+	system("pause");
 
 	return 0;
 

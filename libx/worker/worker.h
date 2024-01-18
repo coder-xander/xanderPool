@@ -72,6 +72,12 @@ namespace xander
         }
         ~Worker()
         {
+            exitflag_.store(true);
+            taskSemaphoreGuard_.release();
+            if (thread_.joinable())
+            {
+                thread_.join();
+            }
             std::cout << "~Worker" << std::endl;
         }
         size_t generateTaskId()
