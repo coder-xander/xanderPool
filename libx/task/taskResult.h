@@ -29,11 +29,40 @@ namespace xander
             // std::cout << " ~ExecuteResult" << std::endl;
         }
         void setId(size_t id) { id_ = id; };
-
-
-        R value()
+        ///@brief 同步获取结果,会一直等待，直到结果准备好
+        R syncGetValue()
         {
+            future_.wait();
             return future_.get();
+        }
+        /// @brief 在预期时间内同步获取结果
+        /// @param ms 超时时间，单位毫秒
+        /// @return 如果结果准备好，会立即返回optional，如果超时，返回std::nullopt,注意:void结果返回void
+        std::conditional_t<std::is_same_v<void, R>, void, std::optional<R>> syncGetValue(int ms)
+        {
+            auto time = std::chrono::milliseconds(ms);
+            auto waitR = future_.wait_for(time);
+            if (waitR == std::future_status::ready)
+            {
+                if constexpr (std::is_same_v<void, R>)
+                {
+                    future_.get(); //return void
+                    return;
+                }
+                else
+                {
+                    return future_.get();
+                }
+            }
+            else
+            {
+                std::cout << "wait for result timeout" << std::endl;
+                if constexpr (!std::is_same_v<void, R>)
+                {
+                    return  std::nullopt;
+                }
+                //else return void 
+            }
         }
 
         // std::optional<std::monostate> toVoid() {

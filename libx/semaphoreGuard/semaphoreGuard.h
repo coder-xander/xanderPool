@@ -10,7 +10,7 @@ namespace xander
     {
     public:
         SemaphoreGuard(int count) : count_(count) {}
-        void acquire()
+        void consume()
         {
             std::unique_lock<std::mutex> lock(mutex_);
             while (count_ <= 0)
@@ -18,6 +18,7 @@ namespace xander
                 con_.wait(lock);
             }
             --count_;
+
         }
         void release()
         {
@@ -33,6 +34,11 @@ namespace xander
         {
             std::lock_guard<std::mutex> lock(mutex_);
             count_ = 0;
+        }
+        auto getCount()
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            return count_;
         }
     private:
         std::mutex mutex_;

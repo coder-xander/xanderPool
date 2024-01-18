@@ -1,16 +1,14 @@
 #pragma once
 #include <future>
 #include <shared_mutex>
-
 #include "../worker/worker.h"
-
 namespace xander
 {
 	class XPool
 	{
 	private:
 		std::shared_mutex workersMutex_;
-		std::vector<WorkerPtr> workersPool_;
+		std::vector<WorkerPtr> workers_;
 		size_t nextWorkerIndex_ = 0;
 	public:
 		XPool()
@@ -19,7 +17,7 @@ namespace xander
 			auto threadCount = std::thread::hardware_concurrency();
 			for (size_t i = 0; i < threadCount; i++)
 			{
-				workersPool_.push_back(Worker::makeShared());
+				workers_.push_back(Worker::makeShared());
 			}
 
 
@@ -28,18 +26,18 @@ namespace xander
 		{
 			for (size_t i = 0; i < threadCount; i++)
 			{
-				workersPool_.push_back(Worker::makeShared());
+				workers_.push_back(Worker::makeShared());
 			}
 		}
 		~XPool()
 		{
 			std::cout << "~XPool" << std::endl;
-			workersPool_.clear();
+			workers_.clear();
 		}
 		///@brief 增加一个工作的线程
 		void addAWorkThread()
 		{
-			workersPool_.push_back(Worker::makeShared());
+			workers_.push_back(Worker::makeShared());
 		}
 		///@brief 减少一个工作的线程
 		void removeAWorkThread()
@@ -48,30 +46,30 @@ namespace xander
 			auto thread = decideWorkerIdlePriority();
 			//移除这个线程
 
-			workersPool_.erase(std::find(workersPool_.begin(), workersPool_.end(), thread));
+			workers_.erase(std::find(workers_.begin(), workers_.end(), thread));
 		}
 
 		///@brief 线程池的调度1，决定一个线程用于接受一个任务
 		WorkerPtr decideAWorkerAverage()
 		{
 
-			WorkerPtr selectedThread = workersPool_[nextWorkerIndex_];
-			nextWorkerIndex_ = (nextWorkerIndex_ + 1) % workersPool_.size();
+			WorkerPtr selectedThread = workers_[nextWorkerIndex_];
+			nextWorkerIndex_ = (nextWorkerIndex_ + 1) % workers_.size();
 			return selectedThread;
 		}
 		///@brief 线程池的调度2，优先使用空闲线程,如果没有空闲线程，就选择任务最少的线程
 		WorkerPtr decideWorkerIdlePriority()
 		{
 
-			for (auto worker : workersPool_)
+			for (auto worker : workers_)
 			{
 				if (worker->getState() == Worker::Idle)
 				{
 					return worker;
 				}
 			}
-			WorkerPtr r = workersPool_.front();
-			for (auto worker : workersPool_)
+			WorkerPtr r = workers_.front();
+			for (auto worker : workers_)
 			{
 				if (worker->getTaskCount() << r->getTaskCount())
 				{
@@ -87,8 +85,6 @@ namespace xander
 			auto worker = decideWorkerIdlePriority();
 			return  worker->submit(std::forward<F>(f), std::forward<Args>(args)...);
 		}
-
-
 	};
 
 }

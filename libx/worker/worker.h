@@ -25,8 +25,17 @@ namespace xander
         XQueue<TaskBasePtr> allTasks_;
         std::thread thread_;
         std::atomic_bool exitflag_;
-        SemaphoreGuard xSemaphoreGuard_;
+        //任务计数信号量
+        SemaphoreGuard taskSemaphoreGuard_;
+        //done
+        std::condition_variable doneCondition_;
+        std::mutex doneMutex_;
+
     public:
+        bool waitForFinished(int ms)
+        {
+
+        }
         auto  getState()
         {
             return state_.load();
@@ -35,7 +44,7 @@ namespace xander
         {
             return std::make_shared<Worker>();
         }
-        Worker() : xSemaphoreGuard_(0)
+        Worker() : taskSemaphoreGuard_(0)
         {
             exitflag_.store(false);
             thread_ = std::thread([this]()
@@ -43,7 +52,7 @@ namespace xander
                     while (!exitflag_)
                     {
                         state_.store(Idle);
-                        xSemaphoreGuard_.acquire();
+                        taskSemaphoreGuard_.consume();
                         state_.store(Busy);
                         executeFirst();
                     }
@@ -66,15 +75,15 @@ namespace xander
             return taskId;
         }
 
-        template <typename F, typename... Args, typename  ReturnType = typename  std::invoke_result_t<F, Args...>>
-        TaskResultPtr<ReturnType> submit(F&& function, Args &&...args)
+        template <typename F, typename... Args, typename  R = typename  std::invoke_result_t<F, Args...>>
+        TaskResultPtr<R> submit(F&& function, Args &&...args)
         {
             size_t taskId = generateTaskId();
-            auto task = std::make_shared<Task<F, ReturnType, Args...>>(taskId, std::forward<F>(function), std::forward<Args>(args)...);
+            auto task = std::make_shared<Task<F, R, Args...>>(taskId, std::forward<F>(function), std::forward<Args>(args)...);
             allTasks_.enqueue(task);
-            TaskResultPtr taskResultPtr = TaskResult<ReturnType>::makeShared(taskId, std::move(task->getTaskPackaged().get_future()));
+            TaskResultPtr taskResultPtr = TaskResult<R>::makeShared(taskId, std::move(task->getTaskPackaged().get_future()));
             task->setTaskResult(taskResultPtr);
-            xSemaphoreGuard_.release();
+            taskSemaphoreGuard_.release();
             return taskResultPtr;
         }
 
@@ -84,9 +93,7 @@ namespace xander
             if (taskOpt.has_value())
             {
                 auto taskPtr = taskOpt.value()->run();
-
                 return   taskPtr;
-
             }
             return nullptr;
         }

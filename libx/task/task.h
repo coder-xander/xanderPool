@@ -57,6 +57,7 @@ namespace xander
 		{
 			return packagedFunc_;
 		}
+
 	private:
 		size_t id_;
 		std::packaged_task<R() > packagedFunc_;
