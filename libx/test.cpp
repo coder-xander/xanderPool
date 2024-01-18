@@ -38,16 +38,17 @@ int main()
 	// 		});
 	//
 	// }
-	for (int j = 0; j < 10000; ++j)
+	for (int j = 0; j < 1000; ++j)
 	{
 		auto r1 = xpoPool->submit([j]()
 			{
 				// std::cout << "run lambda !"<<"线程id"<<std::this_thread::get_id()<< std::endl;
-				std::this_thread::sleep_for(std::chrono::milliseconds(300));
-				// std::thread::id this_id = std::this_thread::get_id();
-				// std::ostringstream ss;
-				// ss << this_id;
-				// std::string strThreadId = ss.str();
+				std::this_thread::sleep_for(std::chrono::milliseconds(3));
+				std::thread::id this_id = std::this_thread::get_id();
+				std::ostringstream ss;
+				ss << this_id;
+				std::string strThreadId = ss.str();
+				std::cout << "running" << std::to_string(j) + "来自线程: " + strThreadId << std::endl;
 				// return "lamda add res num :" + std::to_string(j) + "来自线程: " + strThreadId;
 			});
 		// 添加一个成员函数
@@ -56,6 +57,8 @@ int main()
 		results.push_back(r1);
 		// results.push_back(r2);
 	}
+	// system("pause");
+	std::cout << xpoPool->dumpWorkers() << std::endl;
 	//记录时间差，打印添加任务花费的时间
 	auto end = std::chrono::system_clock::now();
 	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();

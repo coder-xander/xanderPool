@@ -1,6 +1,4 @@
 ﻿#pragma once
-/// @brief 任务管理类
-
 #include <any>
 #include <chrono>
 #include <future>
@@ -8,7 +6,7 @@
 #include "../task/taskResult.h"
 #include "../task/task.h"
 #include "../semaphoreGuard/semaphoreGuard.h"
-///@brief  任务worker拥有一个线程、一个任队列，这是一个线程池的基本单元
+///@brief  任务worker拥有一个线程、一个任队列，这是一个线程池的基本单元，所有方法线程安全
 
 namespace xander
 {
@@ -16,29 +14,44 @@ namespace xander
     class Worker
     {
     public:
-        enum States
-        {
-            Idle = 0, Busy, Shutdown
-        };
+        // enum States
+        // {
+        //     Idle = 0, Busy, Shutdown
+        // };
     private:
-        std::atomic<States> state_;
+        //名字
+        // std::shared_mutex nameMutex_;
+        // std::string name_;
+        //状态
+        // std::atomic<States> state_;
         XQueue<TaskBasePtr> allTasks_;
+        //线程
         std::thread thread_;
         std::atomic_bool exitflag_;
         //任务计数信号量
         SemaphoreGuard taskSemaphoreGuard_;
-        //done
-        std::condition_variable doneCondition_;
-        std::mutex doneMutex_;
+
 
     public:
-        bool waitForFinished(int ms)
+        // void setName(std::string name)
+        // {
+        //     std::lock_guard lock(nameMutex_);
+        //     name_ = name;
+        // }
+        // std::string getName()
+        // {
+        //     std::lock_guard lock(nameMutex_);
+        //     return name_;
+        // }
+        std::string idString()
         {
-
+            std::ostringstream os;
+            os << thread_.get_id();
+            return os.str();
         }
-        auto  getState()
+        bool  isBusy()
         {
-            return state_.load();
+            return allTasks_.empty() == false;
         }
         static std::shared_ptr<Worker> makeShared()
         {
@@ -51,12 +64,10 @@ namespace xander
                 {
                     while (!exitflag_)
                     {
-                        state_.store(Idle);
                         taskSemaphoreGuard_.consume();
-                        state_.store(Busy);
                         executeFirst();
                     }
-                    state_.store(Shutdown);
+                    // state_.store(Shutdown);
                 });
         }
         ~Worker()

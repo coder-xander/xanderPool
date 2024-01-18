@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <future>
 #include <shared_mutex>
 #include "../worker/worker.h"
@@ -7,46 +7,49 @@ namespace xander
 	class XPool
 	{
 	private:
+		//工作者，
 		std::shared_mutex workersMutex_;
 		std::vector<WorkerPtr> workers_;
+
+		//标记
 		size_t nextWorkerIndex_ = 0;
+		std::atomic_int workerMinNum_;
+		std::atomic_int workerMaxNum_;
 	public:
+		auto addAWorker()
+		{
+			std::cout << "add Worker" << std::endl;
+			auto w = Worker::makeShared();
+			workers_.push_back(w);
+			return w;
+		}
 		XPool()
 		{
-			//获取cpu核心数，创建这么多线程
-			auto threadCount = std::thread::hardware_concurrency();
-			for (size_t i = 0; i < threadCount; i++)
+			//最少有两个worker
+			workerMinNum_.store(2);
+			//获取cpu核心数，创建对应数量线程，最多有处理器核心数量个
+			workerMaxNum_.store(std::thread::hardware_concurrency());
+			for (size_t i = 0; i < workerMinNum_.load(); i++)
 			{
-				workers_.push_back(Worker::makeShared());
+				addAWorker();
 			}
 
 
 		}
-		explicit XPool(size_t threadCount)
+		explicit XPool(int workerMinNum, int workerMaxNum)
 		{
-			for (size_t i = 0; i < threadCount; i++)
+			workerMinNum_.store(workerMinNum);
+			workerMaxNum_.store(workerMaxNum);
+
+			for (size_t i = 0; i < workerMinNum_.load(); i++)
 			{
-				workers_.push_back(Worker::makeShared());
+				addAWorker();
 			}
 		}
 		~XPool()
 		{
 			std::cout << "~XPool" << std::endl;
 			workers_.clear();
-		}
-		///@brief 增加一个工作的线程
-		void addAWorkThread()
-		{
-			workers_.push_back(Worker::makeShared());
-		}
-		///@brief 减少一个工作的线程
-		void removeAWorkThread()
-		{
-			//寻找一个空闲的线程，或者任务数量最少的线程
-			auto thread = decideWorkerIdlePriority();
-			//移除这个线程
-
-			workers_.erase(std::find(workers_.begin(), workers_.end(), thread));
 		}
 
 		///@brief 线程池的调度1，决定一个线程用于接受一个任务
@@ -57,33 +60,70 @@ namespace xander
 			nextWorkerIndex_ = (nextWorkerIndex_ + 1) % workers_.size();
 			return selectedThread;
 		}
-		///@brief 线程池的调度2，优先使用空闲线程,如果没有空闲线程，就选择任务最少的线程
+		///@brief 线程池的调度2，优先使用空闲线程,如果没有空闲线程，就选择任务最少的线程.
+		///如果没有空闲线程，并且当前线程数未达到最大值，则创建并返回一个新的线程
 		WorkerPtr decideWorkerIdlePriority()
 		{
-
 			for (auto worker : workers_)
 			{
-				if (worker->getState() == Worker::Idle)
+				if (!worker->isBusy())
 				{
 					return worker;
 				}
 			}
+
+			if (workers_.size() < workerMaxNum_.load()) {
+				WorkerPtr worker = addAWorker();
+				return worker;
+			}
+
 			WorkerPtr r = workers_.front();
 			for (auto worker : workers_)
 			{
-				if (worker->getTaskCount() << r->getTaskCount())
+				if (worker->getTaskCount() < r->getTaskCount())
 				{
 					r = worker;
 				}
 			}
+
 			return r;
 		}
 		/// @brief 线程池接受一个任务
+		///	@param f 任务函数
+		///	@param args 任务函数的参数
+		///	@return 任务结果
 		template <typename F, typename... Args, typename  Rt = typename  std::invoke_result_t < F, Args ...>>
-		TaskResultPtr<Rt> submit(F&& f, Args &&...args)
+		TaskResultPtr<Rt> submit(F&& f, Args &&...args, std::string workerName = "")
 		{
 			auto worker = decideWorkerIdlePriority();
 			return  worker->submit(std::forward<F>(f), std::forward<Args>(args)...);
+		}
+
+		std::string dumpWorkers()
+		{
+			std::string s;
+			s += "+-------------------+-------------------+\n";
+			s += "| Thread ID         | Contained Task Num|\n";
+			s += "+-------------------+-------------------+\n";
+
+			for (auto worker : workers_)
+			{
+				std::string threadID = "Thread ID: " + worker->idString();
+				std::string numTasks = "Contained Task Num: " + std::to_string(worker->getTaskCount());
+
+				int threadIDSpace = 19 - threadID.length();
+				for (int i = 0; i < threadIDSpace; i++)
+					threadID += " ";
+
+				int numTasksSpace = 19 - numTasks.length();
+				for (int i = 0; i < numTasksSpace; i++)
+					numTasks += " ";
+
+				s += "| " + threadID + " | " + numTasks + " |\n";
+				s += "+-------------------+-------------------+\n";
+			}
+
+			return s;
 		}
 	};
 
