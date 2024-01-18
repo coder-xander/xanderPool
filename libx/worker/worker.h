@@ -77,6 +77,7 @@ namespace xander
             xSemaphoreGuard_.release();
             return taskResultPtr;
         }
+
         TaskBasePtr  executeFirst()
         {
             auto taskOpt = allTasks_.tryPop();

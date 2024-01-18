@@ -30,12 +30,20 @@ int main()
 	std::mutex resultsMutex_;
 	//记录开始时间
 	auto start = std::chrono::system_clock::now();
-	for (int j = 0; j < 100000000; ++j)
+	// for (int i = 0; i < 10; ++i)
+	// {
+	// 	auto f = std::async([&]()
+	// 		{
+	// 			
+	// 		});
+	//
+	// }
+	for (int j = 0; j < 10000; ++j)
 	{
 		auto r1 = xpoPool->submit([j]()
 			{
 				// std::cout << "run lambda !"<<"线程id"<<std::this_thread::get_id()<< std::endl;
-				//
+
 				// std::thread::id this_id = std::this_thread::get_id();
 				// std::ostringstream ss;
 				// ss << this_id;

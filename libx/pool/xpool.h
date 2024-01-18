@@ -9,7 +9,7 @@ namespace xander
 	class XPool
 	{
 	private:
-		std::shared_mutex threadsMutex_;
+		std::shared_mutex workersMutex_;
 		std::vector<WorkerPtr> workersPool_;
 		size_t nextWorkerIndex_ = 0;
 	public:
@@ -54,7 +54,7 @@ namespace xander
 		///@brief 线程池的调度1，决定一个线程用于接受一个任务
 		WorkerPtr decideAWorkerAverage()
 		{
-			std::lock_guard lock(threadsMutex_);
+
 			WorkerPtr selectedThread = workersPool_[nextWorkerIndex_];
 			nextWorkerIndex_ = (nextWorkerIndex_ + 1) % workersPool_.size();
 			return selectedThread;
@@ -62,7 +62,7 @@ namespace xander
 		///@brief 线程池的调度2，优先使用空闲线程,如果没有空闲线程，就选择任务最少的线程
 		WorkerPtr decideWorkerIdlePriority()
 		{
-			std::lock_guard lock(threadsMutex_);
+
 			for (auto worker : workersPool_)
 			{
 				if (worker->getState() == Worker::Idle)
@@ -87,6 +87,7 @@ namespace xander
 			auto worker = decideWorkerIdlePriority();
 			return  worker->submit(std::forward<F>(f), std::forward<Args>(args)...);
 		}
+
 
 	};
 
