@@ -26,6 +26,10 @@ namespace xander {
 		{
 			// std::cout << "~XQueue" << std::endl;
 		}
+		auto& getMutex()
+		{
+			return mutex_;
+		}
 		void enqueue(const T& value)
 		{
 			std::lock_guard<std::mutex> lock(mutex_);
@@ -60,7 +64,7 @@ namespace xander {
 
 		bool empty() const
 		{
-			std::lock_guard<std::mutex> lock(mutex_);
+			std::unique_lock<std::mutex> lock(mutex_);
 			return deque_.empty();
 		}
 

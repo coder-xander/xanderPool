@@ -43,12 +43,12 @@ int main()
 		auto r1 = xpoPool->submit([j]()
 			{
 				// std::cout << "run lambda !"<<"线程id"<<std::this_thread::get_id()<< std::endl;
-				std::this_thread::sleep_for(std::chrono::milliseconds(3));
+				std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 				std::thread::id this_id = std::this_thread::get_id();
 				std::ostringstream ss;
 				ss << this_id;
 				std::string strThreadId = ss.str();
-				std::cout << "running" << std::to_string(j) + "来自线程: " + strThreadId << std::endl;
+				// std::cout << "running" << std::to_string(j) + "来自线程: " + strThreadId << std::endl;
 				// return "lamda add res num :" + std::to_string(j) + "来自线程: " + strThreadId;
 			});
 		// 添加一个成员函数
@@ -82,6 +82,7 @@ int main()
 	delete xpoPool;
 	system("pause");
 
+	// system("pause");
 	return 0;
 
 }

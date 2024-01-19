@@ -27,11 +27,15 @@ namespace xander
         XQueue<TaskBasePtr> allTasks_;
         //线程
         std::thread thread_;
+        std::mutex threadMutex_;
         std::atomic_bool exitflag_;
         //任务计数信号量
-        SemaphoreGuard taskSemaphoreGuard_;
-
-
+        std::condition_variable taskCv_;
+        std::mutex tasksMutex_;
+        // SemaphoreGuard taskSemaphoreGuard_;
+        //shutDown
+        std::condition_variable shutdownCv_;
+        std::mutex shutdownMutex_;
     public:
         // void setName(std::string name)
         // {
@@ -57,27 +61,40 @@ namespace xander
         {
             return std::make_shared<Worker>();
         }
-        Worker() : taskSemaphoreGuard_(0)
+        Worker()
         {
             exitflag_.store(false);
+            std::lock_guard threadLock(threadMutex_);
             thread_ = std::thread([this]()
                 {
-                    while (!exitflag_)
+                    while (true)
                     {
-                        taskSemaphoreGuard_.consume();
+                        if (allTasks_.empty())
+                        {
+
+                            std::unique_lock<std::mutex>  lock(tasksMutex_);
+                            taskCv_.wait(lock);
+                        }
+                        if (exitflag_)
+                        {
+                            shutdownCv_.notify_one();
+                            break;
+                        }
                         executeFirst();
+                        if (exitflag_)
+                        {
+                            shutdownCv_.notify_one();
+                            break;
+                        }
+
                     }
                     // state_.store(Shutdown);
+                    std::cout << "worker thread exit" << std::endl;
                 });
         }
         ~Worker()
         {
-            exitflag_.store(true);
-            taskSemaphoreGuard_.release();
-            if (thread_.joinable())
-            {
-                thread_.join();
-            }
+            // shutdown();
             std::cout << "~Worker" << std::endl;
         }
         size_t generateTaskId()
@@ -100,7 +117,7 @@ namespace xander
             allTasks_.enqueue(task);
             TaskResultPtr taskResultPtr = TaskResult<R>::makeShared(taskId, std::move(task->getTaskPackaged().get_future()));
             task->setTaskResult(taskResultPtr);
-            taskSemaphoreGuard_.release();
+            taskCv_.notify_one();
             return taskResultPtr;
         }
 
@@ -122,6 +139,21 @@ namespace xander
         bool removeTask(size_t taskId);
         size_t getTaskCount() { return allTasks_.size(); }
         void clear();
+        bool shutdown()
+        {
+            exitflag_.store(true);
+            std::unique_lock   lock(shutdownMutex_);
+            taskCv_.notify_one();
+            shutdownCv_.wait(lock);
+            std::lock_guard threadLock(threadMutex_);
+            if (thread_.joinable())
+            {
+                thread_.join();
+                return true;
+            }
+            return true;
+        }
+
     };
     using WorkerPtr = std::shared_ptr<Worker>;
 

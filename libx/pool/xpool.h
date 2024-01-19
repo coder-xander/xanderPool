@@ -4,6 +4,8 @@
 #include "../worker/worker.h"
 namespace xander
 {
+	///@brief 线程池，所有方法线程安全
+	///析构没有完成所有任务的线程池会放弃没有完成的任务。
 	class XPool
 	{
 	private:
@@ -49,7 +51,18 @@ namespace xander
 		~XPool()
 		{
 			std::cout << "~XPool" << std::endl;
+			std::vector<std::future<bool>> fs;
+			for (auto e : workers_)
+			{
+				auto f = std::async([this, e]() {return e->shutdown(); });
+				fs.push_back(std::move(f));
+			}
+			for (auto& f : fs)
+			{
+				f.get();
+			}
 			workers_.clear();
+
 		}
 
 		///@brief 线程池的调度1，决定一个线程用于接受一个任务
