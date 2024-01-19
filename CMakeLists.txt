@@ -2,8 +2,8 @@
 # 并包含子项目。
 cmake_minimum_required (VERSION 3.8 )
 set(CMAKE_CXX_STANDARD 17)
-project ("libX")
+project ("xanderPool")
 # 包含子项目。
-add_subdirectory ("libX")
+add_subdirectory ("XanderPool")
 
 
