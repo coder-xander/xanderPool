@@ -17,7 +17,23 @@ namespace xander
 		size_t nextWorkerIndex_ = 0;
 		std::atomic_int workerMinNum_;
 		std::atomic_int workerMaxNum_;
+		static std::unique_ptr<XPool> instance_;
+		static std::mutex instanceMutex_;
 	public:
+		//线程安全的单例，自动释放
+		static XPool* instance()
+		{
+			if (instance_ == nullptr)
+			{
+				std::lock_guard<std::mutex> lock(instanceMutex_);
+				if (instance_ == nullptr)
+				{
+					instance_.reset(new XPool());
+				}
+			}
+			return instance_.get();
+		}
+
 		auto addAWorker()
 		{
 			std::cout << "add Worker" << std::endl;
@@ -111,7 +127,6 @@ namespace xander
 			auto worker = decideWorkerIdlePriority();
 			return  worker->submit(std::forward<F>(f), std::forward<Args>(args)...);
 		}
-
 		std::string dumpWorkers()
 		{
 			std::string s;
@@ -139,5 +154,7 @@ namespace xander
 			return s;
 		}
 	};
-
+	// 静态成员初始化
+	std::unique_ptr<XPool> XPool::instance_ = nullptr;
+	std::mutex XPool::instanceMutex_;
 }

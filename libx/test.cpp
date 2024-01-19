@@ -23,7 +23,7 @@ public:
 };
 int main()
 {
-	auto  xpoPool = new XPool();
+
 	ClassA ca;
 	// 添加一个全局函数
 	std::vector<TaskResultPtr<void>> results;
@@ -40,7 +40,7 @@ int main()
 	// }
 	for (int j = 0; j < 1000; ++j)
 	{
-		auto r1 = xpoPool->submit([j]()
+		auto r1 = XPool::instance()->submit([j]()
 			{
 				// std::cout << "run lambda !"<<"线程id"<<std::this_thread::get_id()<< std::endl;
 				std::this_thread::sleep_for(std::chrono::milliseconds(1000));
@@ -58,7 +58,7 @@ int main()
 		// results.push_back(r2);
 	}
 	// system("pause");
-	std::cout << xpoPool->dumpWorkers() << std::endl;
+	std::cout << XPool::instance()->dumpWorkers() << std::endl;
 	//记录时间差，打印添加任务花费的时间
 	auto end = std::chrono::system_clock::now();
 	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
@@ -77,11 +77,7 @@ int main()
 	duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 	std::cout << "测试流程完成总时间：" << duration << "ms" << std::endl;
 	results.clear();
-
 	system("pause");
-	delete xpoPool;
-	system("pause");
-
 	// system("pause");
 	return 0;
 
