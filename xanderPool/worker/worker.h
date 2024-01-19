@@ -2,6 +2,9 @@
 #include <any>
 #include <chrono>
 #include <future>
+#include <random>
+#include <sstream>
+
 #include "../queue/queue.h"
 #include "../task/taskResult.h"
 #include "../task/task.h"
@@ -53,7 +56,7 @@ namespace xander
             os << thread_.get_id();
             return os.str();
         }
-        bool  isBusy()
+        bool  isBusy() const
         {
             return tasks_.empty() == false;
         }
@@ -80,7 +83,7 @@ namespace xander
                             shutdownCv_.notify_one();
                             break;
                         }
-                        executeFirst();
+                        executePop();
                         if (exitflag_)
                         {
                             shutdownCv_.notify_one();
@@ -97,22 +100,32 @@ namespace xander
             // shutdown();
             std::cout << "~Worker" << std::endl;
         }
-        size_t generateTaskId()
-        {
-            auto duration = std::chrono::system_clock::now().time_since_epoch();
-            auto now = std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count();
-            auto taskId = std::hash<decltype(now)>()(now);
-            while (findTask(taskId) != nullptr)
-            {
-                taskId = generateTaskId();
-            }
-            return taskId;
-        }
+        //消耗时间，暂时弃用
+        static std::string generateUUID() {
+            std::random_device rd;
+            std::mt19937 rng(rd());
+            std::uniform_int_distribution<> uni(0, 15);
 
+            const char* chars = "0123456789ABCDEF";
+            const char* uuidTemplate = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx";
+
+            std::string uuid(uuidTemplate);
+
+            for (auto& c : uuid) {
+                if (c != 'x' && c != 'y') {
+                    continue;
+                }
+                const int r = uni(rng);
+                c = chars[(c == 'y' ? (r & 0x3) | 0x8 : r)];
+            }
+
+            return uuid;
+        }
         template <typename F, typename... Args, typename  R = typename  std::invoke_result_t<F, Args...>>
         TaskResultPtr<R> submit(F&& function, Args &&...args)
         {
-            size_t taskId = generateTaskId();
+            // auto taskId = generateUUID();
+            std::string taskId = "";
             auto task = std::make_shared<Task<F, R, Args...>>(taskId, std::forward<F>(function), std::forward<Args>(args)...);
             tasks_.enqueue(task);
             TaskResultPtr taskResultPtr = TaskResult<R>::makeShared(taskId, std::move(task->getTaskPackaged().get_future()));
@@ -121,7 +134,7 @@ namespace xander
             return taskResultPtr;
         }
 
-        TaskBasePtr  executeFirst()
+        TaskBasePtr  executePop()
         {
             auto taskOpt = tasks_.tryPop();
             if (taskOpt.has_value())
@@ -131,7 +144,8 @@ namespace xander
             }
             return nullptr;
         }
-        TaskBasePtr findTask(size_t taskId)
+        
+        [[maybe_unused]]  TaskBasePtr findTask(const std::string& taskId)
         {
             auto op = tasks_.find([taskId](auto task)
                 { return task->getId() == taskId; });
@@ -144,9 +158,9 @@ namespace xander
                 return nullptr;
             }
         }
-        bool removeTask(size_t taskId);
+        [[maybe_unused]] bool removeTask(size_t taskId);
         size_t getTaskCount() { return tasks_.size(); }
-        void clear();
+        [[maybe_unused]] void clear();
         bool shutdown()
         {
             exitflag_.store(true);

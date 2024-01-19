@@ -33,7 +33,7 @@ namespace xander
 			}
 			return instance_.get();
 		}
-
+	
 		auto addAWorker()
 		{
 			std::cout << "add Worker" << std::endl;

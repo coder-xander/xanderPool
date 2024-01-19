@@ -13,7 +13,7 @@ namespace xander
 	public:
 		virtual ~TaskBase() = default;
 		virtual std::shared_ptr<TaskBase> run() = 0;
-		virtual size_t getId() = 0;
+		virtual const std::string& getId() = 0;
 	};
 
 	/// @brief 任务实现类
@@ -25,7 +25,7 @@ namespace xander
 	{
 	public:
 		//要么是void要么就是any
-		explicit Task(size_t id, F&& function, Args &&...args)
+		explicit Task(const std::string& id, F&& function, Args &&...args)
 			: id_(id), packagedFunc_(std::bind(std::forward<F>(function), std::forward<Args>(args)...))
 		{
 		}
@@ -39,7 +39,7 @@ namespace xander
 			packagedFunc_();
 			return shared_from_this();
 		}
-		size_t getId() override
+		const std::string& getId() override
 		{
 			return id_;
 		}
@@ -54,7 +54,7 @@ namespace xander
 		}
 
 	private:
-		size_t id_;
+		std::string  id_;
 		std::packaged_task<R() > packagedFunc_;
 		TaskResultPtr<R> taskResultPtr_;
 	};

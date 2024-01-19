@@ -13,13 +13,13 @@ namespace xander
     class TaskResult
     {
     public:
-        static std::shared_ptr<TaskResult> makeShared(size_t id, std::future<R>&& future)
+        static std::shared_ptr<TaskResult> makeShared(std::string& id, std::future<R>&& future)
         {
             return std::make_shared<TaskResult>(id, std::move(future));
         }
 
 
-        TaskResult(size_t id, std::future<R>&& future) : id_(id), future_(std::move(future))
+        TaskResult(std::string& id, std::future<R>&& future) : id_(id), future_(std::move(future))
         {
 
         }
@@ -28,7 +28,7 @@ namespace xander
         {
             // std::cout << " ~ExecuteResult" << std::endl;
         }
-        void setId(size_t id) { id_ = id; };
+        void setId(std::string& id) { id_ = id; };
         ///@brief 同步获取结果,会一直等待，直到结果准备好
         R syncGetValue()
         {
@@ -76,7 +76,7 @@ namespace xander
         // }
 
     private:
-        size_t id_;
+        std::string  id_;
         std::future<R> future_;
     };
     template<typename R>
