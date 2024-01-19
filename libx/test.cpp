@@ -38,7 +38,7 @@ int main()
 	// 		});
 	//
 	// }
-	for (int j = 0; j < 1000; ++j)
+	for (int j = 0; j < 10000; ++j)
 	{
 		auto r1 = XPool::instance()->submit([j]()
 			{
@@ -68,7 +68,7 @@ int main()
 	for (auto e : results)
 	{
 		std::lock_guard lock(resultsMutex_);
-		// auto s = e->value();
+		// auto s = e->syncGetValue();
 		// std::cout << "获得结果：" << s << std::endl;
 
 	}

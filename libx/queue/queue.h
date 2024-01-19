@@ -80,7 +80,7 @@ namespace xander {
 			return deque_.size();
 		}
 
-		T find(std::function<bool(const T&)> adptor)
+		std::optional<T> find(std::function<bool(const T&)> adptor)
 		{
 			std::lock_guard<std::mutex> lock(mutex_);
 			for (T item : deque_)
@@ -88,7 +88,8 @@ namespace xander {
 				if (adptor(item))
 					return item;
 			}
-			return T();
+			return std::nullopt;
+			// return T();
 		}
 		bool removeOne(std::function<bool(const T&)> adptor)
 		{

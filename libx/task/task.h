@@ -35,7 +35,7 @@ namespace xander
 		}
 		std::shared_ptr<TaskBase>  run() override
 		{
-			std::lock_guard lock(taskResultMutex_);
+
 			packagedFunc_();
 			return shared_from_this();
 		}
@@ -45,13 +45,8 @@ namespace xander
 		}
 		void setTaskResult(TaskResultPtr<R> taskResultPtr)
 		{
-			std::lock_guard lock(taskResultMutex_);
+
 			taskResultPtr_ = taskResultPtr;
-		}
-		TaskResultPtr<R> getTaskResult()
-		{
-			std::lock_guard lock(taskResultMutex_);
-			return taskResultPtr_;
 		}
 		std::packaged_task<R()>& getTaskPackaged()
 		{
@@ -62,7 +57,6 @@ namespace xander
 		size_t id_;
 		std::packaged_task<R() > packagedFunc_;
 		TaskResultPtr<R> taskResultPtr_;
-		std::mutex taskResultMutex_;
 	};
 	using TaskBasePtr = std::shared_ptr<TaskBase>;
 }

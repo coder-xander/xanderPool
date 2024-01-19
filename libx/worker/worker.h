@@ -24,7 +24,7 @@ namespace xander
         // std::string name_;
         //状态
         // std::atomic<States> state_;
-        XQueue<TaskBasePtr> allTasks_;
+        XQueue<TaskBasePtr> tasks_;
         //线程
         std::thread thread_;
         std::mutex threadMutex_;
@@ -55,7 +55,7 @@ namespace xander
         }
         bool  isBusy()
         {
-            return allTasks_.empty() == false;
+            return tasks_.empty() == false;
         }
         static std::shared_ptr<Worker> makeShared()
         {
@@ -69,7 +69,7 @@ namespace xander
                 {
                     while (true)
                     {
-                        if (allTasks_.empty())
+                        if (tasks_.empty())
                         {
 
                             std::unique_lock<std::mutex>  lock(tasksMutex_);
@@ -114,7 +114,7 @@ namespace xander
         {
             size_t taskId = generateTaskId();
             auto task = std::make_shared<Task<F, R, Args...>>(taskId, std::forward<F>(function), std::forward<Args>(args)...);
-            allTasks_.enqueue(task);
+            tasks_.enqueue(task);
             TaskResultPtr taskResultPtr = TaskResult<R>::makeShared(taskId, std::move(task->getTaskPackaged().get_future()));
             task->setTaskResult(taskResultPtr);
             taskCv_.notify_one();
@@ -123,7 +123,7 @@ namespace xander
 
         TaskBasePtr  executeFirst()
         {
-            auto taskOpt = allTasks_.tryPop();
+            auto taskOpt = tasks_.tryPop();
             if (taskOpt.has_value())
             {
                 auto taskPtr = taskOpt.value()->run();
@@ -133,11 +133,19 @@ namespace xander
         }
         TaskBasePtr findTask(size_t taskId)
         {
-            return allTasks_.find([taskId](auto task)
+            auto op = tasks_.find([taskId](auto task)
                 { return task->getId() == taskId; });
+            if (op.has_value())
+            {
+                return op.value();
+            }
+            else
+            {
+                return nullptr;
+            }
         }
         bool removeTask(size_t taskId);
-        size_t getTaskCount() { return allTasks_.size(); }
+        size_t getTaskCount() { return tasks_.size(); }
         void clear();
         bool shutdown()
         {
