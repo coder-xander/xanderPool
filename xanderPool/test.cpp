@@ -1,6 +1,7 @@
 ﻿#include <future>
 #include "pool/xpool.h"
 #include "worker/worker.h"
+#include "tool.h"
 using namespace std;
 using namespace xander;
 class ClassA
@@ -27,44 +28,47 @@ int main()
 	ClassA ca;
 	// 添加一个全局函数
 	std::vector<TaskResultPtr<void>> results;
+	int testTimes_{ 10000 };
 	std::mutex resultsMutex_;
 	//记录开始时间
 	auto start = std::chrono::system_clock::now();
-	// for (int i = 0; i < 10; ++i)
+	for (int i = 0; i < 10; ++i)
+	{
+		auto f = std::async([&]()
+			{
+
+			});
+
+	}
+
+	std::deque<std::string> testDeq_;
+	timeTest("添加任务", [&]() mutable
+		{
+			for (int j = 0; j < testTimes_; ++j)
+			{
+				auto r1 = XPool::instance()->submit([j]()
+					{
+						// std::cout << "run lambda !"<<"线程id"<<std::this_thread::get_id()<< std::endl;
+						std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+						std::thread::id this_id = std::this_thread::get_id();
+						std::ostringstream ss;
+						ss << this_id;
+						std::string strThreadId = ss.str();
+						// std::cout << "running" << std::to_string(j) + "来自线程: " + strThreadId << std::endl;
+						// return "lamda add res num :" + std::to_string(j) + "来自线程: " + strThreadId;
+					});
+
+				results.push_back(r1);
+			}
+
+		});
+	// for (int i = 0; i < testTimes_; ++i)
 	// {
-	// 	auto f = std::async([&]()
-	// 		{
-	// 			
-	// 		});
+	// 	testDeq_.push_back("dsadsadsadasdsa");
 	//
 	// }
-	for (int j = 0; j < 10000; ++j)
-	{
-		auto r1 = XPool::instance()->submit([j]()
-			{
-				// std::cout << "run lambda !"<<"线程id"<<std::this_thread::get_id()<< std::endl;
-				std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-				std::thread::id this_id = std::this_thread::get_id();
-				std::ostringstream ss;
-				ss << this_id;
-				std::string strThreadId = ss.str();
-				// std::cout << "running" << std::to_string(j) + "来自线程: " + strThreadId << std::endl;
-				// return "lamda add res num :" + std::to_string(j) + "来自线程: " + strThreadId;
-			});
-		// 添加一个成员函数
-		// auto r2 = xpoPool.acceptTask(&ClassA::memberFunc, &ca, 1, 3.4);
-		std::lock_guard lock(resultsMutex_);
-		results.push_back(r1);
-		// results.push_back(r2);
-	}
 	// system("pause");
 	std::cout << XPool::instance()->dumpWorkers() << std::endl;
-	//记录时间差，打印添加任务花费的时间
-	auto end = std::chrono::system_clock::now();
-	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-	std::cout << "添加任务花费的时间：" << duration << "ms" << std::endl;
-
-	// 也可以添加全局函数、成员函数
 	for (auto e : results)
 	{
 		std::lock_guard lock(resultsMutex_);
@@ -72,10 +76,6 @@ int main()
 		// std::cout << "获得结果：" << s << std::endl;
 
 	}
-	std::cout << "处理完成 一共任务:" << std::to_string(results.size()) << std::endl;
-	end = std::chrono::system_clock::now();
-	duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-	std::cout << "测试流程完成总时间：" << duration << "ms" << std::endl;
 	results.clear();
 	system("pause");
 	// system("pause");
