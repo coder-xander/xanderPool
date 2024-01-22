@@ -9,6 +9,7 @@
 /// @author xander
 namespace xander
 {
+    class TaskBase;
     template<typename  R>
     class TaskResult
     {
@@ -18,7 +19,7 @@ namespace xander
             return std::make_shared<TaskResult>(id, std::move(future));
         }
 
-
+        
         TaskResult(std::string& id, std::future<R>&& future) : id_(id), future_(std::move(future))
         {
 
@@ -74,13 +75,23 @@ namespace xander
         //         return std::nullopt;
         //     }
         // }
-
+        void setTask(std::weak_ptr<TaskBase> task)
+        {
+            task_ = task;
+        }
+        auto  task()
+        {
+            return task_;
+        }
     private:
         std::string  id_;
         std::future<R> future_;
+        std::weak_ptr<TaskBase> task_;
     };
     template<typename R>
     using TaskResultPtr = std::shared_ptr<TaskResult<R>>;
     // using TaskResultWeakPtr = std::weak_ptr<TaskResult>;
 
 }
+
+#include "task.h"

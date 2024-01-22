@@ -67,6 +67,10 @@ namespace xander
 
 			taskResultPtr_ = taskResultPtr;
 		}
+		auto taskResult()
+		{
+			return taskResultPtr_;
+		}
 		std::packaged_task<R()>& getTaskPackaged()
 		{
 			return packagedFunc_;

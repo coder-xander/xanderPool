@@ -130,6 +130,7 @@ namespace xander
             tasks_.enqueue(task);
             TaskResultPtr taskResultPtr = TaskResult<R>::makeShared(taskId, std::move(task->getTaskPackaged().get_future()));
             task->setTaskResult(taskResultPtr);
+            taskResultPtr->setTask(task);
             taskCv_.notify_one();
             return taskResultPtr;
         }
