@@ -65,7 +65,7 @@ int main()
 	timeTest("生成uuid100000个", [&]()
 	{
 			std::vector<std::string> uuids;
-		for (int i = 0; i < 1; ++i)
+		for (int i = 0; i < 100000; ++i)
 		{
 			uuids.push_back(Worker::generateUUID());
 		}

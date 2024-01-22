@@ -122,7 +122,7 @@ namespace xander
 		///	@param args 任务函数的参数
 		///	@return 任务结果
 		template <typename F, typename... Args, typename  Rt = typename  std::invoke_result_t < F, Args ...>>
-		TaskResultPtr<Rt> submit(F&& f, Args &&...args, std::string workerName = "")
+		TaskResultPtr<Rt> submit(F&& f, Args &&...args)
 		{
 			auto worker = decideWorkerIdlePriority();
 			return  worker->submit(std::forward<F>(f), std::forward<Args>(args)...);

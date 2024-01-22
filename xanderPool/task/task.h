@@ -10,7 +10,25 @@ namespace xander
 	/// @brief 任务的基类
 	class TaskBase :public  std::enable_shared_from_this<TaskBase>
 	{
+	
 	public:
+		enum Priority
+		{
+			High,
+			Normal,
+			low
+		};
+	private:
+		Priority 	priority_;
+	public:
+		void setPriority(const Priority& priority)
+		{
+			priority_ = priority;
+		}
+		const auto& priority()const
+		{
+			return priority_;
+		}
 		virtual ~TaskBase() = default;
 		virtual std::shared_ptr<TaskBase> run() = 0;
 		virtual const std::string& getId() = 0;
@@ -23,6 +41,7 @@ namespace xander
 	template <typename F, typename R, typename... Args >
 	class Task final : public TaskBase
 	{
+
 	public:
 		//要么是void要么就是any
 		explicit Task(const std::string& id, F&& function, Args &&...args)

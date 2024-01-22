@@ -100,7 +100,7 @@ namespace xander
             // shutdown();
             std::cout << "~Worker" << std::endl;
         }
-        //消耗时间，暂时弃用
+        //耗时操作
         static std::string generateUUID() {
             std::random_device rd;
             std::mt19937 rng(rd());
