@@ -12,13 +12,58 @@ namespace xander
 		//工作者，
 		std::shared_mutex workersMutex_;
 		std::vector<WorkerPtr> workers_;
-
 		//标记
 		size_t nextWorkerIndex_ = 0;
 		std::atomic_int workerMinNum_;
 		std::atomic_int workerMaxNum_;
-	    inline	static std::unique_ptr<XPool> instance_;
-		inline static std::mutex instanceMutex_;
+	    inline static std::unique_ptr<XPool> instance_;//单例
+		inline static std::mutex instanceMutex_;//单例锁
+		int expiryTime_=1000;//空闲的worker的过期时间,单位ms
+		std::thread timerThread_;
+		std::atomic_bool timerThreadExitFlag_;
+	private:
+		/// @brief 自动管理worker资源,自动管理
+		auto startWorkerWatcher()
+		{
+			timerThread_ = std::thread([this]()
+				{
+					while (!timerThreadExitFlag_.load())
+					{
+						std::chrono::milliseconds dura(expiryTime_);
+						std::this_thread::sleep_for(dura);
+						std::lock_guard lock(workersMutex_);
+						auto itr = workers_.begin();
+						std::cout<<dumpWorkers()<<std::endl;
+						while (itr != workers_.end()) {
+
+							// Check if we have more than workerMinNum_ workers remaining
+							if (workers_.size() > workerMinNum_)
+							{
+								auto isbusy = (*itr)->isBusy();
+								if (isbusy) {
+									++itr;
+								}
+								else {
+									(*itr)->shutdown();
+									std::cout << ":remove one worker" << std::endl;
+									itr = workers_.erase(itr);
+
+									// if only workerMinNum_ workers are left, break the loop.
+									if (workers_.size() <= workerMinNum_) {
+										break;
+									}
+								}
+							}
+							else
+							{
+								break;
+							}
+						}
+					}
+
+				});
+				
+		}
 	public:
 		//线程安全的单例，自动释放
 		static XPool* instance()
@@ -33,7 +78,7 @@ namespace xander
 			}
 			return instance_.get();
 		}
-	
+		
 		auto addAWorker()
 		{
 			std::cout << "add Worker" << std::endl;
@@ -42,7 +87,7 @@ namespace xander
 			return w;
 		}
 		XPool()
-		{
+		{ 
 			//最少有两个worker
 			workerMinNum_.store(2);
 			//获取cpu核心数，创建对应数量线程，最多有处理器核心数量个
@@ -51,7 +96,7 @@ namespace xander
 			{
 				addAWorker();
 			}
-
+			startWorkerWatcher();
 
 		}
 		explicit XPool(int workerMinNum, int workerMaxNum)
