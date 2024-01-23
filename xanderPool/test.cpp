@@ -22,6 +22,15 @@ public:
 		return "function add :" + std::to_string(a) + std::to_string(b);
 	}
 };
+// 计算斐波那契数列的函数
+long long fib(int n)
+{
+	if (n <= 1)
+		return n;
+	else
+		return fib(n - 1) + fib(n - 2);
+}
+
 int main()
 {
 
@@ -48,14 +57,8 @@ int main()
 			{
 				auto r1 = XPool::instance()->submit([j]()
 					{
-						// std::cout << "run lambda !"<<"线程id"<<std::this_thread::get_id()<< std::endl;
-						std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-						std::thread::id this_id = std::this_thread::get_id();
-						std::ostringstream ss;
-						ss << this_id;
-						std::string strThreadId = ss.str();
-						std::cout << "running" << std::to_string(j) + "来自线程: " + strThreadId << std::endl;
-						// return "lamda add res num :" + std::to_string(j) + "来自线程: " + strThreadId;
+						auto r = fib(10);
+						// std::cout << "fib result :" << std::to_string(r);
 					});
 	
 				results.push_back(r1);
@@ -82,9 +85,6 @@ int main()
 	{
 		std::lock_guard lock(resultsMutex_);
 		 e->syncGetValue();
-		// std::cout << "获得结果：" << s << std::endl;
-		 auto weakPtr = e->task();
-		 t.push_back(weakPtr.lock().get());
 	}
 	system("pause");
 	results.clear();
