@@ -17,8 +17,8 @@ namespace xander
 		size_t nextWorkerIndex_ = 0;
 		std::atomic_int workerMinNum_;
 		std::atomic_int workerMaxNum_;
-		static std::unique_ptr<XPool> instance_;
-		static std::mutex instanceMutex_;
+	    inline	static std::unique_ptr<XPool> instance_;
+		inline static std::mutex instanceMutex_;
 	public:
 		//线程安全的单例，自动释放
 		static XPool* instance()
@@ -154,7 +154,5 @@ namespace xander
 			return s;
 		}
 	};
-	// 静态成员初始化
-	std::unique_ptr<XPool> XPool::instance_ = nullptr;
-	std::mutex XPool::instanceMutex_;
+
 }

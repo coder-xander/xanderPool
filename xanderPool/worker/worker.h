@@ -8,7 +8,6 @@
 #include "../queue/queue.h"
 #include "../task/taskResult.h"
 #include "../task/task.h"
-#include "../semaphoreGuard/semaphoreGuard.h"
 ///@brief  任务worker拥有一个线程、一个任队列，这是一个线程池的基本单元，所有方法线程安全
 
 namespace xander
