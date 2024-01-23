@@ -29,8 +29,8 @@ namespace xander
         // std::atomic<States> state_;
         //三个优先级任务队列
         XDeque<TaskBasePtr> tasks_;
-        XDeque<TaskBasePtr> HighPriorityTasks_;
-        XDeque<TaskBasePtr> LowPriorityTasks_;
+        XDeque<TaskBasePtr> highPriorityTasks_;
+        XDeque<TaskBasePtr> lowPriorityTasks_;
         //线程
         std::thread thread_;
         std::mutex threadMutex_;
@@ -45,32 +45,17 @@ namespace xander
     private:
         bool allTaskDequeEmpty()
         {
-            return tasks_.empty()&&HighPriorityTasks_.empty()&&LowPriorityTasks_.empty();
+            return tasks_.empty()&&highPriorityTasks_.empty()&&lowPriorityTasks_.empty();
         }
     public:
-        // void setName(std::string name)
-        // {
-        //     std::lock_guard lock(nameMutex_);
-        //     name_ = name;
-        // }
-        // std::string getName()
-        // {
-        //     std::lock_guard lock(nameMutex_);
-        //     return name_;
-        // }
-        std::string idString()
-        {
-            std::ostringstream os;
-            os << thread_.get_id();
-            return os.str();
-        }
-        bool  isBusy() const
-        {
-            return !tasks_.empty()||!HighPriorityTasks_.empty()||!LowPriorityTasks_.empty() ;
-        }
         static std::shared_ptr<Worker> makeShared()
         {
             return std::make_shared<Worker>();
+        }
+        ~Worker()
+        {
+            // shutdown();
+            std::cout << "~Worker" << std::endl;
         }
         Worker()
         {
@@ -103,26 +88,31 @@ namespace xander
                     std::cout << "worker thread exit" << std::endl;
                 });
         }
-        ~Worker()
+        std::string idString()
         {
-            // shutdown();
-            std::cout << "~Worker" << std::endl;
+            std::ostringstream os;
+            os << thread_.get_id();
+            return os.str();
+        }
+        bool  isBusy() const
+        {
+            return !tasks_.empty() || !highPriorityTasks_.empty() || !lowPriorityTasks_.empty();
         }
         /// @brief获得一个优先级最高的任务
         std::optional<TaskBasePtr> decideHighestPriorityTask()
         {
             
-            if (HighPriorityTasks_.empty() == false)
+            if (highPriorityTasks_.empty() == false)
             {
-               return  HighPriorityTasks_.tryPop();
+               return  highPriorityTasks_.tryPop();
             }
             else if (tasks_.empty() == false)
             {
                 return tasks_.tryPop();
             }
-            else if (LowPriorityTasks_.empty() == false)
+            else if (lowPriorityTasks_.empty() == false)
             {
-                return LowPriorityTasks_.tryPop();
+                return lowPriorityTasks_.tryPop();
             }
             return std::nullopt;
         }
@@ -166,16 +156,16 @@ namespace xander
         {
             if (task->priority() == TaskBase::Normal)
             {
-                               tasks_.enqueue(task);
+                tasks_.enqueue(task);
 
             }
             else if (task->priority() == TaskBase::High)
             {
-                               HighPriorityTasks_.enqueue(task);
+                highPriorityTasks_.enqueue(task);
             }
             else if (task->priority() == TaskBase::low)
             {
-                               LowPriorityTasks_.enqueue(task);
+                lowPriorityTasks_.enqueue(task);
             }
             taskCv_.notify_one();
         }
