@@ -41,7 +41,7 @@ int main()
 	}
 
 	std::deque<std::string> testDeq_;
-	constexpr  int taskAddTestNum{ 120000 };//添加任务的数量
+	constexpr  int taskAddTestNum{ 10000 };//添加任务的数量
 	timeTest("添加任务", [&]() mutable
 		{
 			for (int j = 0; j < taskAddTestNum; ++j)
@@ -49,7 +49,7 @@ int main()
 				auto r1 = XPool::instance()->submit([j]()
 					{
 						// std::cout << "run lambda !"<<"线程id"<<std::this_thread::get_id()<< std::endl;
-						// std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+						std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 						std::thread::id this_id = std::this_thread::get_id();
 						std::ostringstream ss;
 						ss << this_id;
@@ -86,8 +86,8 @@ int main()
 		 auto weakPtr = e->task();
 		 t.push_back(weakPtr.lock().get());
 	}
-	results.clear();
 	system("pause");
+	results.clear();
 	// system("pause");
 	return 0;
 

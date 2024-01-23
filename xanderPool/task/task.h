@@ -18,7 +18,8 @@ namespace xander
 			Normal,
 			low
 		};
-	private:
+	protected:
+		//默认为Normal
 		Priority 	priority_;
 	public:
 		void setPriority(const Priority& priority)
@@ -47,6 +48,7 @@ namespace xander
 		explicit Task(const std::string& id, F&& function, Args &&...args)
 			: id_(id), packagedFunc_(std::bind(std::forward<F>(function), std::forward<Args>(args)...))
 		{
+			priority_ = Priority::Normal;
 		}
 		~Task() override
 		{
@@ -54,7 +56,6 @@ namespace xander
 		}
 		std::shared_ptr<TaskBase>  run() override
 		{
-
 			packagedFunc_();
 			return shared_from_this();
 		}

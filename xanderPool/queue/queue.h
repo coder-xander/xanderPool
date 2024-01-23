@@ -8,7 +8,7 @@ namespace xander {
 
 
 	template <typename T>
-	class XQueue
+	class XDeque
 	{
 	private:
 		std::deque<T> deque_;
@@ -16,15 +16,15 @@ namespace xander {
 		std::condition_variable condVar_;
 
 	public:
-		XQueue() = default;
-		XQueue(const XQueue& other)
+		XDeque() = default;
+		XDeque(const XDeque& other)
 		{
 			std::lock_guard<std::mutex> lock(other.mutex_);
 			deque_ = other.deque_;
 		}
-		~XQueue()
+		~XDeque()
 		{
-			// std::cout << "~XQueue" << std::endl;
+			// std::cout << "~XDeque" << std::endl;
 		}
 		auto& getMutex()
 		{

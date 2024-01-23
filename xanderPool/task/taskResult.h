@@ -1,6 +1,4 @@
 ﻿#pragma once
-#include <any>
-#include <functional>
 #include <future>
 #include <iostream>
 #include <optional>
@@ -38,7 +36,7 @@ namespace xander
         }
         /// @brief 在预期时间内同步获取结果
         /// @param ms 超时时间，单位毫秒
-        /// @return 如果结果准备好，会立即返回optional，如果超时，返回std::nullopt,注意:void结果返回void
+        /// @return 如果结果准备好，会立即返回optional，如果超时，返回std::nullopt,注意:void结果返回nullopt
         std::conditional_t<std::is_same_v<void, R>, void, std::optional<R>> syncGetValue(int ms)
         {
             auto time = std::chrono::milliseconds(ms);
@@ -66,15 +64,6 @@ namespace xander
             }
         }
 
-        // std::optional<std::monostate> toVoid() {
-        //     if (voidFuture_.valid()) {
-        //         voidFuture_.get(); // Wait for the future to be ready
-        //         return std::monostate();
-        //     }
-        //     else {
-        //         return std::nullopt;
-        //     }
-        // }
         void setTask(std::weak_ptr<TaskBase> task)
         {
             task_ = task;
@@ -93,5 +82,5 @@ namespace xander
     // using TaskResultWeakPtr = std::weak_ptr<TaskResult>;
 
 }
-
+//预声明。
 #include "task.h"
