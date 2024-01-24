@@ -48,18 +48,18 @@ int main()
 			});
 
 	}
-
+	XPool * xPool = new XPool(2,12);
 	std::deque<std::string> testDeq_;
-	constexpr  int taskAddTestNum{ 10000000 };//添加任务的数量
+	constexpr  int taskAddTestNum{ 120000 };//添加任务的数量
 	timeTest("添加任务", [&]() mutable
 		{
 			for (int j = 0; j < taskAddTestNum; ++j)
 			{
-				auto r1 = XPool::instance()->submit([j]()
+				auto r1 = xPool->submit([j]()
 					{
 						// std::this_thread::sleep_for(std::chrono::milliseconds(10));
 						auto r = fib(2);
-						std::cout << "fib result :" << std::to_string(r);
+						// std::cout << "fib result :" << std::to_string(r);
 					});
 	
 				results.push_back(r1);
@@ -80,8 +80,7 @@ int main()
 	//
 	// }
 	// system("pause");
-	std::vector<TaskBase*>t;
-	std::cout << XPool::instance()->dumpWorkers() << std::endl;
+	std::cout<<xPool->dumpWorkers() << std::endl;
 	for (auto e : results)
 	{
 		std::lock_guard lock(resultsMutex_);
