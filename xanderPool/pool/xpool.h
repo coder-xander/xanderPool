@@ -1,4 +1,5 @@
 ﻿#pragma once
+#include <format>
 #include <future>
 #include <shared_mutex>
 #include "../worker/worker.h"
@@ -21,7 +22,7 @@ namespace xander
 		int expiryTime_=1000;//空闲的worker的过期时间,单位ms
 		std::thread timerThread_;
 		std::atomic_bool timerThreadExitFlag_;
-	
+
 	private:
 		/// @brief 自动管理worker资源,自动管理
 		auto startWorkerWatcher()
@@ -34,7 +35,7 @@ namespace xander
 						std::this_thread::sleep_for(dura);
 						std::lock_guard lock(workersMutex_);
 						auto itr = workers_.begin();
-						std::cout<<dumpWorkers()<<"\n";
+						printf_s(dumpWorkers().data() );
 						while (itr != workers_.end()) {
 
 							// Check if we have more than workerMinNum_ workers remaining
@@ -48,8 +49,6 @@ namespace xander
 									(*itr)->shutdown();
 									std::cout << ":remove one worker" << std::endl;
 									itr = workers_.erase(itr);
-
-									// if only workerMinNum_ workers are left, break the loop.
 									if (workers_.size() <= workerMinNum_) {
 										break;
 									}
@@ -173,6 +172,17 @@ namespace xander
 			auto result  =  worker->submit(std::forward<F>(f), std::forward<Args>(args)..., priority);
 			return result;
 		}
+		//打包一组任务为一个任务
+		// template <typename F, typename... Args, typename  Rt = std::invoke_result_t < F, Args ...>>
+		// TaskResultPtr<Rt> submitGroupAsOne(std::vector<std::pair<F, std::tuple<Args...>>> functions, const TaskBase::Priority& priority = TaskBase::Normal)
+		// {
+		// 	return submit([functions]() {
+		// 		for (auto& func : functions)
+		// 		{
+		// 			std::apply(std::get<0>(func), std::get<1>(func));
+		// 		}
+		// 		}, priority);
+		// }
 		std::string dumpWorkers()
 		{
 			std::string s;

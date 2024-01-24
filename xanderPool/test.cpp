@@ -50,7 +50,7 @@ int main()
 	}
 
 	std::deque<std::string> testDeq_;
-	constexpr  int taskAddTestNum{ 10000 };//添加任务的数量
+	constexpr  int taskAddTestNum{ 10000000 };//添加任务的数量
 	timeTest("添加任务", [&]() mutable
 		{
 			for (int j = 0; j < taskAddTestNum; ++j)
