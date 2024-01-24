@@ -159,22 +159,17 @@ namespace xander
             if (task->priority() == TaskBase::Normal)
             {
                 normalTasks_.enqueue(task);
-                taskCv_.notify_one();
-                return;
+
             }
-             if (task->priority() == TaskBase::High)
+            else if (task->priority() == TaskBase::High)
             {
                 highPriorityTasks_.enqueue(task);
-                taskCv_.notify_one();
-                return;
             }
-             if (task->priority() == TaskBase::low)
+            else if (task->priority() == TaskBase::low)
             {
                 lowPriorityTasks_.enqueue(task);
-                taskCv_.notify_one();
-                return;
             }
-           
+            taskCv_.notify_one();
         }
         TaskBasePtr  executePop()
         {

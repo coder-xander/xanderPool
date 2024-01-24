@@ -21,6 +21,7 @@ namespace xander
 		int expiryTime_=1000;//空闲的worker的过期时间,单位ms
 		std::thread timerThread_;
 		std::atomic_bool timerThreadExitFlag_;
+	
 	private:
 		/// @brief 自动管理worker资源,自动管理
 		auto startWorkerWatcher()
@@ -33,7 +34,7 @@ namespace xander
 						std::this_thread::sleep_for(dura);
 						std::lock_guard lock(workersMutex_);
 						auto itr = workers_.begin();
-						std::cout<<dumpWorkers()<<std::endl;
+						std::cout<<dumpWorkers()<<"\n";
 						while (itr != workers_.end()) {
 
 							// Check if we have more than workerMinNum_ workers remaining
@@ -81,7 +82,7 @@ namespace xander
 		
 		auto addAWorker()
 		{
-			std::cout << "add Worker" << std::endl;
+			std::cout << "add Worker" << "\n";
 			auto w = Worker::makeShared();
 			workers_.push_back(w);
 			return w;
@@ -97,7 +98,6 @@ namespace xander
 				addAWorker();
 			}
 			startWorkerWatcher();
-
 		}
 		explicit XPool(int workerMinNum, int workerMaxNum)
 		{
@@ -111,7 +111,7 @@ namespace xander
 		}
 		~XPool()
 		{
-			std::cout << "~XPool" << std::endl;
+			std::cout << "~XPool" << "\n";
 			std::vector<std::future<bool>> fs;
 			for (auto e : workers_)
 			{
@@ -169,8 +169,9 @@ namespace xander
 		template <typename F, typename... Args, typename  Rt = std::invoke_result_t < F, Args ...>>
 		TaskResultPtr<Rt> submit(F&& f, Args &&...args, const TaskBase::Priority& priority = TaskBase::Normal)
 		{
-			auto worker = decideWorkerIdlePriority();
-			return  worker->submit(std::forward<F>(f), std::forward<Args>(args)..., priority);
+			const auto worker = decideWorkerIdlePriority();
+			auto result  =  worker->submit(std::forward<F>(f), std::forward<Args>(args)..., priority);
+			return result;
 		}
 		std::string dumpWorkers()
 		{
@@ -179,16 +180,16 @@ namespace xander
 			s += "| Thread ID         | Contained Task Num|\n";
 			s += "+-------------------+-------------------+\n";
 
-			for (auto worker : workers_)
+			for (const auto worker : workers_)
 			{
 				std::string threadID = "Thread ID: " + worker->idString();
 				std::string numTasks = "Contained Task Num: " + std::to_string(worker->getTaskCount());
 
-				int threadIDSpace = 19 - threadID.length();
+				const int threadIDSpace = 19 - threadID.length();
 				for (int i = 0; i < threadIDSpace; i++)
 					threadID += " ";
 
-				int numTasksSpace = 19 - numTasks.length();
+				const int numTasksSpace = 19 - numTasks.length();
 				for (int i = 0; i < numTasksSpace; i++)
 					numTasks += " ";
 

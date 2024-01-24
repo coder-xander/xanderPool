@@ -57,8 +57,9 @@ int main()
 			{
 				auto r1 = XPool::instance()->submit([j]()
 					{
+						// std::this_thread::sleep_for(std::chrono::milliseconds(10));
 						auto r = fib(2);
-						// std::cout << "fib result :" << std::to_string(r);
+						std::cout << "fib result :" << std::to_string(r);
 					});
 	
 				results.push_back(r1);
