@@ -41,19 +41,24 @@ namespace xander
 	/// @tparam F function type
 	/// @tparam ...Args arguments type
 	/// @tparam R return value type
-	template <typename F, typename R, typename... Args >
+	template <typename F, typename R , typename... Args >
 	class Task final : public TaskBase
 	{
 
 	public:
 		///@brief constructor,will bind function with args to a std::packaged_task,and the default priority of task is Normal.
-		explicit Task(F&& function, Args &&...args)
+		explicit Task(F&& function, Args&&... args)
 			: packagedFunc_(std::bind(std::forward<F>(function), std::forward<Args>(args)...))
 		{
 			priority_ = Priority::Normal;
 			nextRelatedTask_ = std::nullopt;
 		}
-		
+		explicit Task(std::packaged_task<R(Args ...)> packagedTask):packagedFunc_(std::move(packagedTask))
+		{
+			priority_ = Priority::Normal;
+			nextRelatedTask_ = std::nullopt;
+		}
+		Task() = delete;
 		///@brief destructor,automatic
 		~Task() override
 		{

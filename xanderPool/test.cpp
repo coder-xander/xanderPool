@@ -72,18 +72,23 @@ int main()
 	// 	
 	// 	});
 	//测试then
-	auto r1 = xPool->submit([]()
+	 auto f = xPool->submit([]()
 		{
 			std::this_thread::sleep_for(std::chrono::milliseconds(20));
 			auto r = fib(12);
 			return r;
-		}, TaskBase::Priority::Normal);
-	auto r2 = r1->then(&ClassA::memberFunc, &ca, 1, 3)->
-	then([]()
-		{
-			std::cout << "res from r2 :"  << std::endl;
-			return "dsds";
-		});
+		 }, TaskBase::Priority::Normal)->then([](auto v)->auto 
+			 {
+				 std::cout << "last time result:" << v;
+				 return "22";
+			 });
+	
+	// auto r2 = r1->then(&ClassA::memberFunc, &ca, 1, 3)->
+	// then([]()
+	// 	{
+	// 		std::cout << "res from r2 :"  << std::endl;
+	// 		return "dsds";
+	// 	});
 
 
 	// timeTest("生成uuid100000个", [&]()

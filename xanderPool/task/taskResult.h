@@ -74,17 +74,28 @@ namespace xander
         {
             return task_;
         }
-        ///@brief setting the next task when this task finished,this function will return a new result ,so you can call this function chainly.
-        template <typename F, typename... Args, typename  R_ = typename  std::invoke_result_t<F, Args...>>
-        std::shared_ptr<TaskResult<R_>> then(F&& function, Args &&...args)
+        template <typename F, typename... Args, typename  R_ = typename  std::invoke_result_t<F, R, Args...>>
+        R_ functionHelper(F&& function,R v ,Args &&...args)
         {
-            auto task = std::make_shared<Task<F, R_, Args...>>(std::forward<F>(function), std::forward<Args>(args)...);
+
+          return   function(v, std::forward<Args>(args)...);
+        }
+        ///@brief setting the next task when this task finished,this function will return a new result ,so you can call this function chainly.
+        template <typename F, typename... Args, typename  R_ = typename  std::invoke_result_t<F, R, Args...>>
+        std::shared_ptr<TaskResult<R_>> then(F&& function, Args&&... args)
+        {
+            R v = syncGetValue();
+            std::packaged_task<R_(Args...)> packagedTask(std::bind(std::forward<F>(function), v, std::forward<Args>(args)...));
+            auto task = std::make_shared<Task<F, R_, Args...>>(std::move(packagedTask));
             auto taskResultPtr = TaskResult<R_>::makeShared(std::move(task->getTaskPackaged().get_future()));
             task->setTaskResult(taskResultPtr);
             taskResultPtr->setTask(task);
             task_.lock()->setNextRelatedTask(task);
             return taskResultPtr;
         }
+
+
+
 
     private:
      
