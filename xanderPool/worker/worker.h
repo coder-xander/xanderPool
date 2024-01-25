@@ -42,6 +42,7 @@ namespace xander
         std::condition_variable shutdownCv_;
         std::mutex shutdownMutex_;
         std::atomic_bool isBusy_;
+    
     private:
         bool allTaskDequeEmpty()
         {
@@ -78,7 +79,9 @@ namespace xander
                             break;
                         }
                         isBusy_.store(true);
-                        executePop();
+                        //运行这个任务
+                        auto task = executePop();
+                        
                         if (exitflag_)
                         {
                             shutdownCv_.notify_one();

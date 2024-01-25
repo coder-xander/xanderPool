@@ -86,6 +86,7 @@ namespace xander
 		std::string  id_;
 		std::packaged_task<R() > packagedFunc_;
 		TaskResultPtr<R> taskResultPtr_;
+		
 	};
 	using TaskBasePtr = std::shared_ptr<TaskBase>;
 }

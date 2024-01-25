@@ -72,19 +72,21 @@ namespace xander
         {
             return task_;
         }
-        // auto then(std::shared_ptr<TaskBase> taskBase)
+        // template <typename F, typename... Args, typename  R_ = typename  std::invoke_result_t<F, Args...>>
+        // std::shared_ptr<R_> then(F&& function, Args &&...args, const TaskBase::Priority& priority)
         // {
-        //     if (task)
-        //     {
-        //                        task->setTaskResult(shared_from_this());
-        //         return task->getTaskResult();
-        //     }
-        //     else
-        //     {
-        //                        std::cout << "task type error" << std::endl;
-        //         return nullptr;
-        //     }
+        //     // auto taskId = generateUUID();
+        //     std::string taskId = "";
+        //     auto task = std::make_shared<Task<F, R_, Args...>>(taskId, std::forward<F>(function), std::forward<Args>(args)...);
+        //     auto taskResultPtr = TaskResult<R>::makeShared(taskId, std::move(task->getTaskPackaged().get_future()));
+        //     task->setPriority(priority);
+        //     task->setTaskResult(taskResultPtr);
+        //     taskResultPtr->setTask(task);
+        //     enQueueTaskByPriority(task);//入队
+        //     taskCv_.notify_one();
+        //     return taskResultPtr;
         // }
+
     private:
         std::string  id_;
         std::future<R> future_;
