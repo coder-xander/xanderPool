@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include <format>
 #include <future>
+#include <iomanip>
 #include <shared_mutex>
 #include "../worker/worker.h"
 namespace xander
@@ -17,9 +18,9 @@ namespace xander
 		size_t nextWorkerIndex_ = 0;
 		std::atomic_int workerMinNum_;
 		std::atomic_int workerMaxNum_;
-	    inline static std::unique_ptr<XPool> instance_;//单例
+		inline static std::unique_ptr<XPool> instance_;//单例
 		inline static std::mutex instanceMutex_;//单例锁
-		int workerExpiryTime_=1000*5;//空闲的worker的过期时间,单位ms
+		int workerExpiryTime_ = 1000 * 5;//空闲的worker的过期时间,单位ms
 		std::thread timerThread_;
 		std::atomic_bool timerThreadExitFlag_;
 
@@ -34,7 +35,7 @@ namespace xander
 						std::chrono::milliseconds dura(workerExpiryTime_);
 						std::this_thread::sleep_for(dura);
 						std::lock_guard lock(workersMutex_);
-						printf_s("cleaning ...............\n");
+						printf_s("calculation :\n");
 						auto itr = workers_.begin();
 						while (itr != workers_.end()) {
 							if (workers_.size() > workerMinNum_)
@@ -60,7 +61,7 @@ namespace xander
 					}
 
 				});
-				
+
 		}
 	public:
 		///@brief 线程安全的单例，自动释放
@@ -89,7 +90,7 @@ namespace xander
 		///@brief 构造函数
 		///设置最少有两个worker，最多为cpu核心数量个worker，并创建两个worker
 		XPool()
-		{ 
+		{
 			//最少有两个worker
 			workerMinNum_.store(2);
 			//获取cpu核心数，创建对应数量线程，最多有处理器核心数量个
@@ -160,7 +161,7 @@ namespace xander
 			WorkerPtr r = workers_.front();
 			for (auto worker : workers_)
 			{
-				if (worker->getTaskCount() < r->getTaskCount())
+				if (worker->taskCount() < r->taskCount())
 				{
 					r = worker;
 				}
@@ -176,7 +177,7 @@ namespace xander
 		TaskResultPtr<Rt> submit(F&& f, Args &&...args, const TaskBase::Priority& priority = TaskBase::Normal)
 		{
 			const auto worker = decideWorkerIdlePriority();
-			auto result  =  worker->submit(std::forward<F>(f), std::forward<Args>(args)..., priority);
+			auto result = worker->submit(std::forward<F>(f), std::forward<Args>(args)..., priority);
 			return result;
 		}
 		//打包一组任务为一个任务
@@ -194,31 +195,27 @@ namespace xander
 		///@return 字符串
 		std::string dumpWorkers()
 		{
-			std::string s;
-			s += "+-------------------+-------------------+\n";
-			s += "| Thread ID         | Contained Task Num|\n";
-			s += "+-------------------+-------------------+\n";
+			std::stringstream ss;
+			ss << "+-------------------+-------------------+-------------------+-------------------+\n";
+			ss << "| Thread ID         | Low Priority Num  | Normal Task Num   | High Priority Num |\n";
+			ss << "+-------------------+-------------------+-------------------+-------------------+\n";
 
-			for (const auto worker : workers_)
+			for (const auto& worker : workers_)
 			{
-				std::string threadID = "Thread ID: " + worker->idString();
-				auto taskNum = worker->getTaskCount();
-				std::string numTasks = "Contained Task Num: " + std::to_string(taskNum);
+				auto lowTaskNum = worker->lowPriorityTaskCount();
+				auto normalTaskNum = worker->normalPriorityTaskCount();
+				auto highTaskNum = worker->highPriorityTaskCount();
 
-				const int threadIDSpace =  threadID.length();
-				for (int i = 0; i < threadIDSpace; i++)
-					threadID += " ";
-
-				const int numTasksSpace = numTasks.length();
-				for (int i = 0; i < numTasksSpace; i++)
-					numTasks += " ";
-
-				s += "| " + threadID + " | " + numTasks + " |\n";
-				s += "+-------------------+-------------------+\n";
+				ss << "| " << std::setw(16) << worker->idString();
+				ss << " | " << std::setw(16) << lowTaskNum;
+				ss << " | " << std::setw(17) << normalTaskNum;
+				ss << " | " << std::setw(16) << highTaskNum;
+				ss << " |\n";
 			}
 
-			return s;
+			ss << "+-------------------+-------------------+-------------------+-------------------+\n";
+			return ss.str();
 		}
-	};
 
+	};
 }

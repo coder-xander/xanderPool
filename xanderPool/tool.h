@@ -1,6 +1,5 @@
 #include <iostream>
 #include <chrono>
-
 namespace xander
 {
     template <typename F, typename... Args, typename TR = std::conditional_t<std::is_void_v<std::invoke_result_t<F, Args...>>, void, std::invoke_result_t<F, Args...>>>

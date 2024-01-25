@@ -45,7 +45,6 @@ namespace xander {
 			v.emplace(std::move(deque_.front())); // 使用emplace直接在optional中构造T
 			deque_.pop_front();
 			// 从队列中移除元素后解锁，以便其他线程操作队列
-			lock.unlock();
 			return v;
 		}
 

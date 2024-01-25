@@ -56,20 +56,30 @@ int main()
 	// });
 	XPool * xPool = new XPool(2,12);
 	std::deque<std::string> testDeq_;
-	constexpr  int taskAddTestNum{ 120000 };//添加任务的数量
+	constexpr  int taskAddTestNum{ 10000 };//添加任务的数量
 	timeTest("添加任务", [&]() mutable
 		{
 			for (int j = 0; j < taskAddTestNum; ++j)
 			{
 				auto r1 = xPool->submit([j]()
 					{
-						std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-					auto r = fib(20);
-						// tstd::cout << "fib resul :" << std::to_string(r);
+						std::this_thread::sleep_for(std::chrono::milliseconds(20));
+						auto r = fib(12);
+						std::cout << "normal:" << std::to_string(r);
+					}, TaskBase::Priority::Normal);
+				results.push_back(r1);
+			}
+			for (int j = 0; j < taskAddTestNum; ++j)
+			{
+				auto r1 = xPool->submit([j]()
+					{
+						std::this_thread::sleep_for(std::chrono::milliseconds(20));
+					auto r = fib(5);
+						std::cout << "high :" << std::to_string(r);
 					},TaskBase::Priority::High);
 				results.push_back(r1);
 			}
-	
+		
 		});
 	// timeTest("生成uuid100000个", [&]()
 	// {
@@ -84,7 +94,7 @@ int main()
 	// 	testDeq_.push_back("dsadsadsadasdsa");
 	//
 	// }
-	// system("pause");
+	system("pause");
 	std::cout<<xPool->dumpWorkers() << std::endl;
 	for (auto e : results)
 	{
