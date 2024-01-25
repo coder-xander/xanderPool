@@ -45,7 +45,6 @@ namespace xander
 								}
 								else {
 									(*itr)->shutdown();
-									std::cout << ":remove one worker" << std::endl;
 									itr = workers_.erase(itr);
 									if (workers_.size() <= workerMinNum_) {
 										break;
@@ -203,13 +202,14 @@ namespace xander
 			for (const auto worker : workers_)
 			{
 				std::string threadID = "Thread ID: " + worker->idString();
-				std::string numTasks = "Contained Task Num: " + std::to_string(worker->getTaskCount());
+				auto taskNum = worker->getTaskCount();
+				std::string numTasks = "Contained Task Num: " + std::to_string(taskNum);
 
-				const int threadIDSpace = 19 - threadID.length();
+				const int threadIDSpace =  threadID.length();
 				for (int i = 0; i < threadIDSpace; i++)
 					threadID += " ";
 
-				const int numTasksSpace = 19 - numTasks.length();
+				const int numTasksSpace = numTasks.length();
 				for (int i = 0; i < numTasksSpace; i++)
 					numTasks += " ";
 

@@ -43,6 +43,10 @@ namespace xander
 	class Task final : public TaskBase
 	{
 
+	// public:
+	// 	using ReturnType = R;
+	// 	using FunctionType = F;
+	// 	using ArgsType = std::tuple<Args...>;
 	public:
 		//要么是void要么就是any
 		explicit Task(const std::string& id, F&& function, Args &&...args)
@@ -50,6 +54,8 @@ namespace xander
 		{
 			priority_ = Priority::Normal;
 		}
+		
+
 		~Task() override
 		{
 			// std::cout << " ~Task" << std::endl;
@@ -65,7 +71,6 @@ namespace xander
 		}
 		void setTaskResult(TaskResultPtr<R> taskResultPtr)
 		{
-
 			taskResultPtr_ = taskResultPtr;
 		}
 		auto taskResult()

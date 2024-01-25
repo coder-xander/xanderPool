@@ -35,11 +35,11 @@ namespace xander
             return future_.get();
         }
         /// @brief 在预期时间内同步获取结果
-        /// @param ms 超时时间，单位毫秒
+        /// @param timeout 超时时间，单位毫秒
         /// @return 如果结果准备好，会立即返回optional，如果超时，返回std::nullopt,注意:void结果返回nullopt
-        std::conditional_t<std::is_same_v<void, R>, void, std::optional<R>> syncGetValue(int ms)
+        std::conditional_t<std::is_same_v<void, R>, void, std::optional<R>> syncGetValue(int timeout)
         {
-            auto time = std::chrono::milliseconds(ms);
+            auto time = std::chrono::milliseconds(timeout);
             auto waitR = future_.wait_for(time);
             if (waitR == std::future_status::ready)
             {
@@ -72,6 +72,19 @@ namespace xander
         {
             return task_;
         }
+        // auto then(std::shared_ptr<TaskBase> taskBase)
+        // {
+        //     if (task)
+        //     {
+        //                        task->setTaskResult(shared_from_this());
+        //         return task->getTaskResult();
+        //     }
+        //     else
+        //     {
+        //                        std::cout << "task type error" << std::endl;
+        //         return nullptr;
+        //     }
+        // }
     private:
         std::string  id_;
         std::future<R> future_;

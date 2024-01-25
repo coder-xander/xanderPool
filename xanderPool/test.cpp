@@ -2,6 +2,7 @@
 #include "pool/xpool.h"
 #include "worker/worker.h"
 #include "tool.h"
+#include "task/task.h"
 using namespace std;
 using namespace xander;
 class ClassA
@@ -48,6 +49,11 @@ int main()
 			});
 
 	}
+	// auto ds = xander::makeTask("ds",[]()
+	// {
+	// 		auto r = 2 + 34;
+	// 	    return r;
+	// });
 	XPool * xPool = new XPool(2,12);
 	std::deque<std::string> testDeq_;
 	constexpr  int taskAddTestNum{ 120000 };//添加任务的数量
@@ -57,11 +63,10 @@ int main()
 			{
 				auto r1 = xPool->submit([j]()
 					{
-						// std::this_thread::sleep_for(std::chrono::milliseconds(10));
-						auto r = fib(2);
-						// std::cout << "fib result :" << std::to_string(r);
-					});
-	
+						std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+					auto r = fib(20);
+						// tstd::cout << "fib resul :" << std::to_string(r);
+					},TaskBase::Priority::High);
 				results.push_back(r1);
 			}
 	
@@ -84,7 +89,7 @@ int main()
 	for (auto e : results)
 	{
 		std::lock_guard lock(resultsMutex_);
-		 e->syncGetValue();
+		e->syncGetValue();
 	}
 	system("pause");
 	results.clear();

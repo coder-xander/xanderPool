@@ -202,7 +202,7 @@ namespace xander
             }
         }
         [[maybe_unused]] bool removeTask(size_t taskId);
-        size_t getTaskCount() { return normalTasks_.size(); }
+        size_t getTaskCount() { return normalTasks_.size()+highPriorityTasks_.size()+lowPriorityTasks_.size(); }
         [[maybe_unused]] void clear();
         bool shutdown()
         {
