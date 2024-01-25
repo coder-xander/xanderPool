@@ -36,7 +36,6 @@ namespace xander {
 		std::optional<T> tryPop()
 		{
 			std::lock_guard<std::mutex> lock(mutex_);
-			//打印线程id和任务数量
 			if (deque_.empty())
 			{
 				return std::nullopt;
@@ -50,9 +49,9 @@ namespace xander {
 			std::unique_lock<std::mutex> lock(mutex_);
 			condVar_.wait(lock, [this] { return !deque_.empty(); });
 			std::optional<T> v;
-			v.emplace(std::move(deque_.front())); // 使用emplace直接在optional中构造T
+			v.emplace(std::move(deque_.front())); 
 			deque_.pop_front();
-			// 从队列中移除元素后解锁，以便其他线程操作队列
+			
 			return v;
 		}
 

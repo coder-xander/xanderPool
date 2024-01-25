@@ -33,7 +33,6 @@ namespace xander
 
 		virtual ~TaskBase() = default;
 		virtual std::shared_ptr<TaskBase> run() = 0;
-		virtual const std::string& getId() = 0;
 		virtual std::optional<std::shared_ptr<TaskBase>> getNextRelatedTask()=0;
 		virtual void setNextRelatedTask(std::shared_ptr<TaskBase> nextRelatedTask) = 0;
 	};
@@ -48,8 +47,8 @@ namespace xander
 
 	public:
 		///@brief constructor,will bind function with args to a std::packaged_task,and the default priority of task is Normal.
-		explicit Task(const std::string& id, F&& function, Args &&...args)
-			: id_(id), packagedFunc_(std::bind(std::forward<F>(function), std::forward<Args>(args)...))
+		explicit Task(F&& function, Args &&...args)
+			: packagedFunc_(std::bind(std::forward<F>(function), std::forward<Args>(args)...))
 		{
 			priority_ = Priority::Normal;
 			nextRelatedTask_ = std::nullopt;

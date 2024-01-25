@@ -142,10 +142,9 @@ namespace xander
         template <typename F, typename... Args, typename  R = typename  std::invoke_result_t<F, Args...>>
         TaskResultPtr<R> submit(F&& function, Args &&...args,const TaskBase::Priority & priority)
         {
-            // auto taskId = generateUUID();
-            std::string taskId = "";
-            auto task = std::make_shared<Task<F, R, Args...>>(taskId, std::forward<F>(function), std::forward<Args>(args)...);
-            TaskResultPtr taskResultPtr = TaskResult<R>::makeShared(taskId, std::move(task->getTaskPackaged().get_future()));
+            
+            auto task = std::make_shared<Task<F, R, Args...>>( std::forward<F>(function), std::forward<Args>(args)...);
+            TaskResultPtr taskResultPtr = TaskResult<R>::makeShared(std::move(task->getTaskPackaged().get_future()));
             task->setPriority(priority);
             task->setTaskResult(taskResultPtr);
             taskResultPtr->setTask(task);

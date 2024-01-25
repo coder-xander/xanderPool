@@ -196,8 +196,8 @@ namespace xander
 		// 		}
 		// 		}, priority);
 		// }
-		///@brief 打印所有的wokers的线程id和他们现在拥有的任务的数量
-		///@return 字符串
+		///@brief print all the workers' thread id and the task number they have
+		///@return the string will be printed
 		std::string dumpWorkers()
 		{
 			std::stringstream ss;

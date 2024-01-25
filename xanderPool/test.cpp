@@ -78,12 +78,13 @@ int main()
 			auto r = fib(12);
 			return r;
 		}, TaskBase::Priority::Normal);
-	auto r2 = r1->then(&ClassA::memberFunc, &ca, 1, 3);
-	auto r3 = r2->then([r2]()
+	auto r2 = r1->then(&ClassA::memberFunc, &ca, 1, 3)->
+	then([]()
 		{
-			std::cout << "res from r2 :"<< r2->syncGetValue() << std::endl;
+			std::cout << "res from r2 :"  << std::endl;
 			return "dsds";
 		});
+
 
 	// timeTest("生成uuid100000个", [&]()
 	// {
