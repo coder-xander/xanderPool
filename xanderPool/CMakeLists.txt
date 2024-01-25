@@ -4,13 +4,11 @@
 add_subdirectory(queue)
 add_subdirectory(pool)
 add_subdirectory(worker)
-add_subdirectory(semaphoreGuard)
 add_subdirectory(task)
 # 主项目
-add_executable (XanderThreadPool "test.cpp" )
+add_executable (XanderThreadPool "tool.h" "test.cpp" )
 # 链接
 target_link_libraries(queue)
-target_link_libraries(SemaphoreGuard)
 target_link_libraries(task)
 target_link_libraries(worker)
 target_link_libraries(pool)

@@ -1,6 +1,4 @@
 ﻿#pragma once
-#include <any>
-#include <functional>
 #include <future>
 #include <iostream>
 #include <optional>
@@ -9,17 +7,18 @@
 /// @author xander
 namespace xander
 {
+    class TaskBase;
     template<typename  R>
     class TaskResult
     {
     public:
-        static std::shared_ptr<TaskResult> makeShared(size_t id, std::future<R>&& future)
+        static std::shared_ptr<TaskResult> makeShared(std::string& id, std::future<R>&& future)
         {
             return std::make_shared<TaskResult>(id, std::move(future));
         }
 
-
-        TaskResult(size_t id, std::future<R>&& future) : id_(id), future_(std::move(future))
+        
+        TaskResult(std::string& id, std::future<R>&& future) : id_(id), future_(std::move(future))
         {
 
         }
@@ -28,7 +27,7 @@ namespace xander
         {
             // std::cout << " ~ExecuteResult" << std::endl;
         }
-        void setId(size_t id) { id_ = id; };
+        void setId(std::string& id) { id_ = id; };
         ///@brief 同步获取结果,会一直等待，直到结果准备好
         R syncGetValue()
         {
@@ -37,7 +36,7 @@ namespace xander
         }
         /// @brief 在预期时间内同步获取结果
         /// @param ms 超时时间，单位毫秒
-        /// @return 如果结果准备好，会立即返回optional，如果超时，返回std::nullopt,注意:void结果返回void
+        /// @return 如果结果准备好，会立即返回optional，如果超时，返回std::nullopt,注意:void结果返回nullopt
         std::conditional_t<std::is_same_v<void, R>, void, std::optional<R>> syncGetValue(int ms)
         {
             auto time = std::chrono::milliseconds(ms);
@@ -65,22 +64,23 @@ namespace xander
             }
         }
 
-        // std::optional<std::monostate> toVoid() {
-        //     if (voidFuture_.valid()) {
-        //         voidFuture_.get(); // Wait for the future to be ready
-        //         return std::monostate();
-        //     }
-        //     else {
-        //         return std::nullopt;
-        //     }
-        // }
-
+        void setTask(std::weak_ptr<TaskBase> task)
+        {
+            task_ = task;
+        }
+        auto  task()
+        {
+            return task_;
+        }
     private:
-        size_t id_;
+        std::string  id_;
         std::future<R> future_;
+        std::weak_ptr<TaskBase> task_;
     };
     template<typename R>
     using TaskResultPtr = std::shared_ptr<TaskResult<R>>;
     // using TaskResultWeakPtr = std::weak_ptr<TaskResult>;
 
 }
+//预声明。
+#include "task.h"

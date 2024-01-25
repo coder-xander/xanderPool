@@ -2,10 +2,12 @@
 #include <any>
 #include <chrono>
 #include <future>
+#include <random>
+#include <sstream>
+
 #include "../queue/queue.h"
 #include "../task/taskResult.h"
 #include "../task/task.h"
-#include "../semaphoreGuard/semaphoreGuard.h"
 ///@brief  任务worker拥有一个线程、一个任队列，这是一个线程池的基本单元，所有方法线程安全
 
 namespace xander
@@ -24,7 +26,10 @@ namespace xander
         // std::string name_;
         //状态
         // std::atomic<States> state_;
-        XQueue<TaskBasePtr> tasks_;
+        //三个优先级任务队列,都是线程安全的
+        XDeque<TaskBasePtr> normalTasks_;
+        XDeque<TaskBasePtr> highPriorityTasks_;
+        XDeque<TaskBasePtr> lowPriorityTasks_;
         //线程
         std::thread thread_;
         std::mutex threadMutex_;
@@ -36,30 +41,21 @@ namespace xander
         //shutDown
         std::condition_variable shutdownCv_;
         std::mutex shutdownMutex_;
+        std::atomic_bool isBusy_;
+    private:
+        bool allTaskDequeEmpty()
+        {
+            return normalTasks_.empty()&&highPriorityTasks_.empty()&&lowPriorityTasks_.empty();
+        }
     public:
-        // void setName(std::string name)
-        // {
-        //     std::lock_guard lock(nameMutex_);
-        //     name_ = name;
-        // }
-        // std::string getName()
-        // {
-        //     std::lock_guard lock(nameMutex_);
-        //     return name_;
-        // }
-        std::string idString()
-        {
-            std::ostringstream os;
-            os << thread_.get_id();
-            return os.str();
-        }
-        bool  isBusy()
-        {
-            return tasks_.empty() == false;
-        }
         static std::shared_ptr<Worker> makeShared()
         {
             return std::make_shared<Worker>();
+        }
+        ~Worker()
+        {
+            // shutdown();
+            std::cout << "~Worker" << std::endl;
         }
         Worker()
         {
@@ -69,10 +65,11 @@ namespace xander
                 {
                     while (true)
                     {
-                        if (tasks_.empty())
+                        if (allTaskDequeEmpty())
                         {
 
                             std::unique_lock<std::mutex>  lock(tasksMutex_);
+                            isBusy_.store(false);
                             taskCv_.wait(lock);
                         }
                         if (exitflag_)
@@ -80,7 +77,8 @@ namespace xander
                             shutdownCv_.notify_one();
                             break;
                         }
-                        executeFirst();
+                        isBusy_.store(true);
+                        executePop();
                         if (exitflag_)
                         {
                             shutdownCv_.notify_one();
@@ -92,38 +90,96 @@ namespace xander
                     std::cout << "worker thread exit" << std::endl;
                 });
         }
-        ~Worker()
+        std::string idString()
         {
-            // shutdown();
-            std::cout << "~Worker" << std::endl;
+            std::ostringstream os;
+            os << thread_.get_id();
+            return os.str();
         }
-        size_t generateTaskId()
+        bool  isBusy() const
         {
-            auto duration = std::chrono::system_clock::now().time_since_epoch();
-            auto now = std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count();
-            auto taskId = std::hash<decltype(now)>()(now);
-            while (findTask(taskId) != nullptr)
+            return isBusy_.load();
+        }
+        /// @brief获得一个优先级最高的任务
+        std::optional<TaskBasePtr> decideHighestPriorityTask()
+        {
+            
+            if (highPriorityTasks_.empty() == false)
             {
-                taskId = generateTaskId();
+               return  highPriorityTasks_.tryPop();
             }
-            return taskId;
+            else if (normalTasks_.empty() == false)
+            {
+                return normalTasks_.tryPop();
+            }
+            else if (lowPriorityTasks_.empty() == false)
+            {
+                return lowPriorityTasks_.tryPop();
+            }
+            return std::nullopt;
         }
+        //耗时操作
+        static std::string generateUUID() {
+            std::random_device rd;
+            std::mt19937 rng(rd());
+            std::uniform_int_distribution<> uni(0, 15);
 
+            const char* chars = "0123456789ABCDEF";
+            const char* uuidTemplate = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx";
+
+            std::string uuid(uuidTemplate);
+
+            for (auto& c : uuid) {
+                if (c != 'x' && c != 'y') {
+                    continue;
+                }
+                const int r = uni(rng);
+                c = chars[(c == 'y' ? (r & 0x3) | 0x8 : r)];
+            }
+
+            return uuid;
+        }
         template <typename F, typename... Args, typename  R = typename  std::invoke_result_t<F, Args...>>
-        TaskResultPtr<R> submit(F&& function, Args &&...args)
+        TaskResultPtr<R> submit(F&& function, Args &&...args,const TaskBase::Priority & priority)
         {
-            size_t taskId = generateTaskId();
+            // auto taskId = generateUUID();
+            std::string taskId = "";
             auto task = std::make_shared<Task<F, R, Args...>>(taskId, std::forward<F>(function), std::forward<Args>(args)...);
-            tasks_.enqueue(task);
             TaskResultPtr taskResultPtr = TaskResult<R>::makeShared(taskId, std::move(task->getTaskPackaged().get_future()));
+            task->setPriority(priority);
             task->setTaskResult(taskResultPtr);
+            taskResultPtr->setTask(task);
+            enQueueTaskByPriority(task);//入队
             taskCv_.notify_one();
             return taskResultPtr;
         }
-
-        TaskBasePtr  executeFirst()
+   
+        /// @brief 按照优先级入队
+        void enQueueTaskByPriority(TaskBasePtr task)
         {
-            auto taskOpt = tasks_.tryPop();
+            if (task->priority() == TaskBase::Normal)
+            {
+                normalTasks_.enqueue(task);
+                taskCv_.notify_one();
+                return;
+            }
+             if (task->priority() == TaskBase::High)
+            {
+                highPriorityTasks_.enqueue(task);
+                taskCv_.notify_one();
+                return;
+            }
+             if (task->priority() == TaskBase::low)
+            {
+                lowPriorityTasks_.enqueue(task);
+                taskCv_.notify_one();
+                return;
+            }
+           
+        }
+        TaskBasePtr  executePop()
+        {
+            auto taskOpt = decideHighestPriorityTask();
             if (taskOpt.has_value())
             {
                 auto taskPtr = taskOpt.value()->run();
@@ -131,9 +187,10 @@ namespace xander
             }
             return nullptr;
         }
-        TaskBasePtr findTask(size_t taskId)
+        
+        [[maybe_unused]]  TaskBasePtr findTask(const std::string& taskId)
         {
-            auto op = tasks_.find([taskId](auto task)
+            auto op = normalTasks_.find([taskId](auto task)
                 { return task->getId() == taskId; });
             if (op.has_value())
             {
@@ -144,9 +201,9 @@ namespace xander
                 return nullptr;
             }
         }
-        bool removeTask(size_t taskId);
-        size_t getTaskCount() { return tasks_.size(); }
-        void clear();
+        [[maybe_unused]] bool removeTask(size_t taskId);
+        size_t getTaskCount() { return normalTasks_.size(); }
+        [[maybe_unused]] void clear();
         bool shutdown()
         {
             exitflag_.store(true);

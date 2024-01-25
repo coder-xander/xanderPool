@@ -5,7 +5,7 @@ namespace xander
 {
 	bool Worker::removeTask(size_t taskId)
 	{
-		return tasks_.removeOne([taskId](const TaskBasePtr& task)
+		return normalTasks_.removeOne([taskId](const TaskBasePtr& task)
 			{ return task->getId() == taskId; });
 	}
 
@@ -13,7 +13,7 @@ namespace xander
 
 	void Worker::clear()
 	{
-		tasks_.clear();
+		normalTasks_.clear();
 	}
 
 }
