@@ -8,56 +8,50 @@
 #include "../queue/queue.h"
 #include "../task/taskResult.h"
 #include "../task/task.h"
-///@brief  任务worker拥有一个线程、一个任队列，这是一个线程池的基本单元，所有方法线程安全
+///@brief  worker is a thread to run task,it container three priority queue of different priority task.
 
 namespace xander
 {
 
     class Worker
     {
-    public:
-        // enum States
-        // {
-        //     Idle = 0, Busy, Shutdown
-        // };
+   
     private:
-        //名字
-        // std::shared_mutex nameMutex_;
-        // std::string name_;
-        //状态
-        // std::atomic<States> state_;
-        //三个优先级任务队列,都是线程安全的
+        //task queue 
         XDeque<TaskBasePtr> normalTasks_;
         XDeque<TaskBasePtr> highPriorityTasks_;
         XDeque<TaskBasePtr> lowPriorityTasks_;
-        //线程
+        //thread
         std::thread thread_;
         std::mutex threadMutex_;
         std::atomic_bool exitflag_;
-        //任务计数信号量
+        //task cv
         std::condition_variable taskCv_;
         std::mutex tasksMutex_;
-        // SemaphoreGuard taskSemaphoreGuard_;
         //shutDown
         std::condition_variable shutdownCv_;
         std::mutex shutdownMutex_;
         std::atomic_bool isBusy_;
     
     private:
+        /// @brief  if all task deque is empty
         bool allTaskDequeEmpty()
         {
             return normalTasks_.empty()&&highPriorityTasks_.empty()&&lowPriorityTasks_.empty();
         }
     public:
+        ///@brief create a new worker decorated by shared_ptr
         static std::shared_ptr<Worker> makeShared()
         {
             return std::make_shared<Worker>();
         }
+        ///@brief destructor,ps:all workers will destroyed when thread pool destruct or destroy by automatic garbage collector.
         ~Worker()
         {
             // shutdown();
             std::cout << "~Worker" << std::endl;
         }
+        ///@brief constructor，create a thread to run task,isBusy flag will be dynamic set,so we know worker`s state
         Worker()
         {
             exitflag_.store(false);
@@ -79,8 +73,8 @@ namespace xander
                             break;
                         }
                         isBusy_.store(true);
-                        //运行这个任务
-                        auto task = executePop();
+                        //run task
+                        auto task = execute();
                         
                         if (exitflag_)
                         {
@@ -93,17 +87,19 @@ namespace xander
                     std::cout << "worker thread exit" << std::endl;
                 });
         }
+        ///@brief get string id 
         std::string idString()
         {
             std::ostringstream os;
             os << thread_.get_id();
             return os.str();
         }
+        ///@brief get result of if worker is on work 
         bool  isBusy() const
         {
             return isBusy_.load();
         }
-        /// @brief获得一个优先级最高的任务
+        /// @brief decide a highest priority task
         std::optional<TaskBasePtr> decideHighestPriorityTask()
         {
             
@@ -121,7 +117,7 @@ namespace xander
             }
             return std::nullopt;
         }
-        //耗时操作
+        ///@brief generate a uuid,but this operation cost more time
         static std::string generateUUID() {
             std::random_device rd;
             std::mt19937 rng(rd());
@@ -142,6 +138,7 @@ namespace xander
 
             return uuid;
         }
+        ///@brief submit a task ,it maybe global function、lambda、member function
         template <typename F, typename... Args, typename  R = typename  std::invoke_result_t<F, Args...>>
         TaskResultPtr<R> submit(F&& function, Args &&...args,const TaskBase::Priority & priority)
         {
@@ -157,7 +154,7 @@ namespace xander
             return taskResultPtr;
         }
    
-        /// @brief 按照优先级入队
+        /// @brief enqueue by priority
         void enQueueTaskByPriority(TaskBasePtr task)
         {
             if (task->priority() == TaskBase::Normal)
@@ -180,36 +177,31 @@ namespace xander
             }
            
         }
-        TaskBasePtr  executePop()
+        ///@brief execute a task and it`s all linked task
+        TaskBasePtr  execute()
         {
-            auto taskOpt = decideHighestPriorityTask();
+            auto taskOpt = decideHighestPriorityTask();//起始task
             if (taskOpt.has_value())
             {
-                auto taskPtr = taskOpt.value()->run();
-                return   taskPtr;
+                std::optional<std::shared_ptr<TaskBase>> tempTaskBasePtr = nullptr;
+                auto task = taskOpt.value();
+                task->run();
+                while (task->getNextRelatedTask().has_value())
+                {
+                    task = task->getNextRelatedTask().value();
+                    task->run();
+                }
+
+                
+            }else
+            {
+                return  nullptr;
             }
+
             return nullptr;
         }
-        
-        [[maybe_unused]]  TaskBasePtr findTask(const std::string& taskId)
-        {
-            auto op = normalTasks_.find([taskId](auto task)
-                { return task->getId() == taskId; });
-            if (op.has_value())
-            {
-                return op.value();
-            }
-            else
-            {
-                return nullptr;
-            }
-        }
-        [[maybe_unused]] bool removeTask(size_t taskId);
-        size_t taskCount() { return normalTasks_.size() + highPriorityTasks_.size() + lowPriorityTasks_.size(); }
-        size_t normalPriorityTaskCount() { return normalTasks_.size(); }
-        size_t highPriorityTaskCount() { return highPriorityTasks_.size(); }
-        size_t lowPriorityTaskCount() { return lowPriorityTasks_.size(); }
-        [[maybe_unused]] void clear();
+        ///@brief force shutdown worker and forgive all task in queue weather it is finished or not
+        [[maybe_unused]]
         bool shutdown()
         {
             exitflag_.store(true);
@@ -224,6 +216,13 @@ namespace xander
             }
             return true;
         }
+
+        [[maybe_unused]] bool removeTask(size_t taskId);
+        size_t taskCount() { return normalTasks_.size() + highPriorityTasks_.size() + lowPriorityTasks_.size(); }
+        size_t normalPriorityTaskCount() { return normalTasks_.size(); }
+        size_t highPriorityTaskCount() { return highPriorityTasks_.size(); }
+        size_t lowPriorityTaskCount() { return lowPriorityTasks_.size(); }
+        [[maybe_unused]] void clear();
 
     };
     using WorkerPtr = std::shared_ptr<Worker>;

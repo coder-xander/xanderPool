@@ -8,6 +8,8 @@
 namespace xander
 {
     class TaskBase;
+    template <typename F, typename R, typename... Args >
+    class Task;
     template<typename  R>
     class TaskResult
     {
@@ -28,7 +30,7 @@ namespace xander
             // std::cout << " ~ExecuteResult" << std::endl;
         }
         void setId(std::string& id) { id_ = id; };
-        ///@brief 同步获取结果,会一直等待，直到结果准备好
+        ///@brief 同步获取结果,会一直等待，直到结果准备好，如果结果是void，返回void，只能调用一次。
         R syncGetValue()
         {
             future_.wait();
@@ -72,20 +74,19 @@ namespace xander
         {
             return task_;
         }
-        // template <typename F, typename... Args, typename  R_ = typename  std::invoke_result_t<F, Args...>>
-        // std::shared_ptr<R_> then(F&& function, Args &&...args, const TaskBase::Priority& priority)
-        // {
-        //     // auto taskId = generateUUID();
-        //     std::string taskId = "";
-        //     auto task = std::make_shared<Task<F, R_, Args...>>(taskId, std::forward<F>(function), std::forward<Args>(args)...);
-        //     auto taskResultPtr = TaskResult<R>::makeShared(taskId, std::move(task->getTaskPackaged().get_future()));
-        //     task->setPriority(priority);
-        //     task->setTaskResult(taskResultPtr);
-        //     taskResultPtr->setTask(task);
-        //     enQueueTaskByPriority(task);//入队
-        //     taskCv_.notify_one();
-        //     return taskResultPtr;
-        // }
+        ///@brief 设置这个任务的下一个任务，这个任务完成后，下一个任务会被执行
+        template <typename F, typename... Args, typename  R_ = typename  std::invoke_result_t<F, Args...>>
+        std::shared_ptr<TaskResult<R_>> then(F&& function, Args &&...args)
+        {
+            std::string taskId = "";
+            auto task = std::make_shared<Task<F, R_, Args...>>(taskId, std::forward<F>(function), std::forward<Args>(args)...);
+            auto taskResultPtr = TaskResult<R_>::makeShared(taskId, std::move(task->getTaskPackaged().get_future()));
+            task->setTaskResult(taskResultPtr);
+            taskResultPtr->setTask(task);
+            //设置关联的next任务
+            task_.lock()->setNextRelatedTask(task);
+            return taskResultPtr;
+        }
 
     private:
         std::string  id_;

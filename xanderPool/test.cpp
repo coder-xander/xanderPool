@@ -19,8 +19,7 @@ public:
 	std::string memberFunc(int a, double b)
 	{
 		this_thread::sleep_for(std::chrono::milliseconds(300));
-		std::cout << "run member function !" << std::endl;
-		return "function add :" + std::to_string(a) + std::to_string(b);
+		return  std::to_string(a) + std::to_string(b);
 	}
 };
 // 计算斐波那契数列的函数
@@ -37,7 +36,7 @@ int main()
 
 	ClassA ca;
 	// 添加一个全局函数
-	std::vector<TaskResultPtr<void>> results;
+	std::vector<TaskResultPtr<long long>> results;
 	std::mutex resultsMutex_;
 	//记录开始时间
 	auto start = std::chrono::system_clock::now();
@@ -57,30 +56,35 @@ int main()
 	XPool * xPool = new XPool(2,12);
 	std::deque<std::string> testDeq_;
 	constexpr  int taskAddTestNum{ 10000 };//添加任务的数量
-	timeTest("添加任务", [&]() mutable
+	// timeTest("添加任务", [&]() mutable
+	// 	{
+	// 		for (int j = 0; j < taskAddTestNum; ++j)
+	// 		{
+	// 			auto r1 = xPool->submit([j]()
+	// 				{
+	// 					std::this_thread::sleep_for(std::chrono::milliseconds(20));
+	// 					auto r = fib(12);
+	// 					return r;
+	// 				}, TaskBase::Priority::Normal);
+	// 			results.push_back(r1);
+	// 		}
+	// 		
+	// 	
+	// 	});
+	//测试then
+	auto r1 = xPool->submit([]()
 		{
-			for (int j = 0; j < taskAddTestNum; ++j)
-			{
-				auto r1 = xPool->submit([j]()
-					{
-						std::this_thread::sleep_for(std::chrono::milliseconds(20));
-						auto r = fib(12);
-						std::cout << "normal:" << std::to_string(r);
-					}, TaskBase::Priority::Normal);
-				results.push_back(r1);
-			}
-			for (int j = 0; j < taskAddTestNum; ++j)
-			{
-				auto r1 = xPool->submit([j]()
-					{
-						std::this_thread::sleep_for(std::chrono::milliseconds(20));
-					auto r = fib(5);
-						std::cout << "high :" << std::to_string(r);
-					},TaskBase::Priority::High);
-				results.push_back(r1);
-			}
-		
+			std::this_thread::sleep_for(std::chrono::milliseconds(20));
+			auto r = fib(12);
+			return r;
+		}, TaskBase::Priority::Normal);
+	auto r2 = r1->then(&ClassA::memberFunc, &ca, 1, 3);
+	auto r3 = r2->then([r2]()
+		{
+			std::cout << "res from r2 :"<< r2->syncGetValue() << std::endl;
+			return "dsds";
 		});
+
 	// timeTest("生成uuid100000个", [&]()
 	// {
 	// 		std::vector<std::string> uuids;

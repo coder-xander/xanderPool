@@ -7,7 +7,7 @@
 
 namespace xander
 {
-	/// @brief 任务的基类
+	/// @brief the task base class
 	class TaskBase :public  std::enable_shared_from_this<TaskBase>
 	{
 	
@@ -19,7 +19,7 @@ namespace xander
 			low
 		};
 	protected:
-		//默认为Normal
+		//normal level is default priority
 		Priority 	priority_;
 	public:
 		void setPriority(const Priority& priority)
@@ -30,63 +30,76 @@ namespace xander
 		{
 			return priority_;
 		}
+
 		virtual ~TaskBase() = default;
 		virtual std::shared_ptr<TaskBase> run() = 0;
 		virtual const std::string& getId() = 0;
+		virtual std::optional<std::shared_ptr<TaskBase>> getNextRelatedTask()=0;
+		virtual void setNextRelatedTask(std::shared_ptr<TaskBase> nextRelatedTask) = 0;
 	};
 
-	/// @brief 任务实现类
-	/// @tparam F 函数
-	/// @tparam ...Args 参数
-	/// @tparam R 返回值
+	/// @brief the task class 
+	/// @tparam F function type
+	/// @tparam ...Args arguments type
+	/// @tparam R return value type
 	template <typename F, typename R, typename... Args >
 	class Task final : public TaskBase
 	{
 
-	// public:
-	// 	using ReturnType = R;
-	// 	using FunctionType = F;
-	// 	using ArgsType = std::tuple<Args...>;
 	public:
-		//要么是void要么就是any
+		///@brief constructor,will bind function with args to a std::packaged_task,and the default priority of task is Normal.
 		explicit Task(const std::string& id, F&& function, Args &&...args)
 			: id_(id), packagedFunc_(std::bind(std::forward<F>(function), std::forward<Args>(args)...))
 		{
 			priority_ = Priority::Normal;
+			nextRelatedTask_ = std::nullopt;
 		}
 		
-
+		///@brief destructor,automatic
 		~Task() override
 		{
 			// std::cout << " ~Task" << std::endl;
 		}
+		///@brief run the task,when run done,future will be gettable.
 		std::shared_ptr<TaskBase>  run() override
 		{
 			packagedFunc_();
 			return shared_from_this();
 		}
-		const std::string& getId() override
-		{
-			return id_;
-		}
+		///@brief this function will be called by pool.give a taskResult to decorate task`s result.
 		void setTaskResult(TaskResultPtr<R> taskResultPtr)
 		{
 			taskResultPtr_ = taskResultPtr;
 		}
+		///@brief this function will be called by Worker,give a related task for another task ,the given task will be run after this task.
+		void setNextRelatedTask(std::shared_ptr<TaskBase> nextRelatedTask)
+		{
+			nextRelatedTask_ = nextRelatedTask;
+		}
+		///@brief get the next task of this task 
+		std::optional<std::shared_ptr<TaskBase>> getNextRelatedTask()
+		{
+			return nextRelatedTask_;
+
+		}
+		///@brief get TaskResultPtr
 		auto taskResult()
 		{
 			return taskResultPtr_;
 		}
+		///@brief  get the packagedFunc_,
 		std::packaged_task<R()>& getTaskPackaged()
 		{
 			return packagedFunc_;
 		}
 
 	private:
-		std::string  id_;
+		//blinded function
 		std::packaged_task<R() > packagedFunc_;
+		//task result decorated by TaskResultPtr
 		TaskResultPtr<R> taskResultPtr_;
-		
+		//the next task of this task
+		std::optional<std::shared_ptr<TaskBase>> nextRelatedTask_;
 	};
 	using TaskBasePtr = std::shared_ptr<TaskBase>;
 }
