@@ -1,13 +1,11 @@
 ﻿#pragma once
 #include <any>
 #include <chrono>
-#include <future>
 #include <random>
 #include <sstream>
-
-#include "../queue.h"
-#include "../task/taskResult.h"
-#include "../task/task.h"
+#include "queue.h"
+#include "taskResult.h"
+#include "task.h"
 ///@brief  worker is a thread to run task,it container three priority queue of different priority task.
 
 namespace xander
@@ -212,7 +210,11 @@ namespace xander
         size_t normalPriorityTaskCount() { return normalTasks_.size(); }
         size_t highPriorityTaskCount() { return highPriorityTasks_.size(); }
         size_t lowPriorityTaskCount() { return lowPriorityTasks_.size(); }
-        [[maybe_unused]] void clear();
+        [[maybe_unused]] void clear()
+        {
+            
+                normalTasks_.clear();
+        }
 
     };
     using WorkerPtr = std::shared_ptr<Worker>;

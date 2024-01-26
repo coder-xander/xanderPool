@@ -1,9 +1,9 @@
 ﻿#include <deque>
 #include <future>
-#include "xpool.h"
-#include "worker/worker.h"
+#include "xanderPool/include/xpool.h"
+#include "xanderPool/include/worker.h"
 #include "tool.h"
-#include "task/task.h"
+#include "xanderPool/include/task.h"
 using namespace std;
 using namespace xander;
 class ClassA
