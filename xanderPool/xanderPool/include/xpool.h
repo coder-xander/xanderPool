@@ -43,6 +43,11 @@ namespace xander
 		~XPool()
 		{
 			std::cout << "~XPool" << "\n";
+			timerThreadExitFlag_.store(true);
+			if (timerThread_.joinable())
+			{
+				timerThread_.join();
+			}
 			std::vector<std::future<bool>> fs;
 			for (auto e : workers_)
 			{
@@ -51,8 +56,9 @@ namespace xander
 			}
 			for (auto& f : fs)
 			{
-				f.get();
+				f.wait();
 			}
+			std::lock_guard lock(workersMutex_);
 			workers_.clear();
 
 		}

@@ -56,7 +56,7 @@ int main()
 			{
 				auto r1 = xPool->submit([j]()
 					{
-						std::this_thread::sleep_for(std::chrono::milliseconds(20));
+						// std::this_thread::sleep_for(std::chrono::milliseconds(20));
 						auto r = fib(12);
 						std::cout << "sub thread added \n";
 						return r;
@@ -72,7 +72,7 @@ int main()
 			{
 				auto r1 = xPool->submit([j]()
 					{
-						std::this_thread::sleep_for(std::chrono::milliseconds(20));
+						// std::this_thread::sleep_for(std::chrono::milliseconds(20));
 						auto r = fib(12);
 						std::cout << "main thread added \n";
 
@@ -108,9 +108,9 @@ int main()
 		e->syncGetResult();
 	}
 	system("pause");
-	results.clear();
 	delete xPool;
-	// system("pause");
+	results.clear();
+	system("pause");
 	return 0;
 
 }
