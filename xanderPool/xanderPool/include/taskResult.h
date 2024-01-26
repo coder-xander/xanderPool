@@ -14,17 +14,17 @@ namespace xander
     class TaskResult
     {
     public:
-        static std::shared_ptr<TaskResult> makeShared( std::future<R>&& future)
+        static std::shared_ptr<TaskResult> makeShared(std::future<R>&& future)
         {
-            return std::make_shared<TaskResult>( std::move(future));
+            return std::make_shared<TaskResult>(std::move(future));
         }
 
-        
-        TaskResult( std::future<R>&& future) :  future_(std::move(future))
+
+        TaskResult(std::future<R>&& future) : future_(std::move(future))
         {
 
         }
-       
+
         ~TaskResult()
         {
             // std::cout << " ~ExecuteResult" << std::endl;
@@ -75,17 +75,17 @@ namespace xander
             return task_;
         }
         template <typename F, typename... Args, typename  R_ = typename  std::invoke_result_t<F, R, Args...>>
-        R_ functionHelper(F&& function,R v ,Args &&...args)
+        R_ functionHelper(F&& function, R v, Args &&...args)
         {
 
-          return   function(v, std::forward<Args>(args)...);
+            return   function(v, std::forward<Args>(args)...);
         }
-       
+
 
 
 
     private:
-     
+
         std::future<R> future_;
         std::weak_ptr<TaskBase> task_;
     };

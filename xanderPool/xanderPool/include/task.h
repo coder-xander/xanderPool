@@ -10,7 +10,7 @@ namespace xander
 	/// @brief the task base class
 	class TaskBase :public  std::enable_shared_from_this<TaskBase>
 	{
-	
+
 	public:
 		enum Priority
 		{
@@ -39,7 +39,7 @@ namespace xander
 	/// @tparam F function type
 	/// @tparam ...Args arguments type
 	/// @tparam R return value type
-	template <typename F, typename R , typename... Args >
+	template <typename F, typename R, typename... Args >
 	class Task final : public TaskBase
 	{
 
@@ -51,10 +51,10 @@ namespace xander
 			priority_ = Priority::Normal;
 
 		}
-		explicit Task(std::packaged_task<R(Args ...)> packagedTask):packagedFunc_(std::move(packagedTask))
+		explicit Task(std::packaged_task<R(Args ...)> packagedTask) :packagedFunc_(std::move(packagedTask))
 		{
 			priority_ = Priority::Normal;
-			
+
 		}
 		Task() = delete;
 		///@brief destructor,automatic
@@ -69,11 +69,11 @@ namespace xander
 			return shared_from_this();
 		}
 		///@brief this function will be called by pool.give a taskResult to decorate task`s result.
-		void setTaskResult(TaskResultPtr<R> taskResultPtr)  
+		void setTaskResult(TaskResultPtr<R> taskResultPtr)
 		{
 			taskResultPtr_ = taskResultPtr;
 		}
-		
+
 		///@brief get TaskResultPtr
 		auto taskResult()
 		{
@@ -90,7 +90,7 @@ namespace xander
 		std::packaged_task<R() > packagedFunc_;
 		//task result decorated by TaskResultPtr
 		TaskResultPtr<R> taskResultPtr_;
-		
+
 	};
 	using TaskBasePtr = std::shared_ptr<TaskBase>;
 }

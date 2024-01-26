@@ -49,9 +49,9 @@ namespace xander {
 			std::unique_lock<std::mutex> lock(mutex_);
 			condVar_.wait(lock, [this] { return !deque_.empty(); });
 			std::optional<T> v;
-			v.emplace(std::move(deque_.front())); 
+			v.emplace(std::move(deque_.front()));
 			deque_.pop_front();
-			
+
 			return v;
 		}
 
@@ -86,7 +86,7 @@ namespace xander {
 			return std::nullopt;
 			// return T();
 		}
-	
+
 		bool removeOne(const T& item)
 		{
 			std::lock_guard<std::mutex> lock(mutex_);

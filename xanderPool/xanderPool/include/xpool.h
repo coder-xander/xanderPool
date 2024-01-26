@@ -38,32 +38,46 @@ namespace xander
 			}
 			startWorkersGc();
 		}
+
+		std::future<bool> asyncDestroyed()
+		{
+			return  std::async(std::launch::async, [this]()
+				{
+					std::cout << "~XPool" << "\n";
+					timerThreadExitFlag_.store(true);
+					if (timerThread_.joinable())
+					{
+						timerThread_.join();
+					}
+					std::vector<std::future<bool>> fs;
+					for (auto e : workers_)
+					{
+						auto f = std::async([this, e]() {return e->shutdown(); });
+						fs.push_back(std::move(f));
+					}
+					for (auto& f : fs)
+					{
+						f.wait();
+					}
+					std::lock_guard lock(workersMutex_);
+					workers_.clear();
+
+
+					return true;
+				});
+
+
+		}
+
 		///@brief deconstruct
 		///waiting for every worker to finish the current task,then end the thread,abandon all the task which is not finished
 		~XPool()
 		{
-			std::cout << "~XPool" << "\n";
-			timerThreadExitFlag_.store(true);
-			if (timerThread_.joinable())
-			{
-				timerThread_.join();
-			}
-			std::vector<std::future<bool>> fs;
-			for (auto e : workers_)
-			{
-				auto f = std::async([this, e]() {return e->shutdown(); });
-				fs.push_back(std::move(f));
-			}
-			for (auto& f : fs)
-			{
-				f.wait();
-			}
-			std::lock_guard lock(workersMutex_);
-			workers_.clear();
-
+			auto f = asyncDestroyed();
+			f.wait();
 		}
 	private:
-		
+
 		std::shared_mutex workersMutex_;
 		std::vector<WorkerPtr> workers_;//workers
 		size_t nextWorkerIndex_ = 0;//flag 
@@ -159,7 +173,7 @@ namespace xander
 			nextWorkerIndex_ = (nextWorkerIndex_ + 1) % workers_.size();
 			return selectedThread;
 		}
-		
+
 		///@brief the policy of decide which worker to accept the next task,this is the smarter policy called not busy first policy,if there is no idle worker,then choose the worker which has the least task
 		WorkerPtr decideWorkerIdlePriority()
 		{
@@ -188,8 +202,8 @@ namespace xander
 
 			return r;
 		}
-		
-		
+
+
 
 		//打包一组任务为一个任务
 		// template <typename F, typename... Args, typename  Rt = std::invoke_result_t < F, Args ...>>

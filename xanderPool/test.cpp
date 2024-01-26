@@ -46,12 +46,12 @@ int main()
 	// 		auto r = 2 + 34;
 	// 	    return r;
 	// });
-	XPool * xPool = new XPool(2,12);
+	XPool* xPool = new XPool(2, 12);
 	deque<std::string> testDeq_;
 
 	constexpr  int taskAddTestNum{ 100 };//添加任务的数量
-	auto f =  std::async(launch::async, [xPool, &results, &resultsMutex_]()
-	{
+	auto f = std::async(launch::async, [xPool, &results, &resultsMutex_]()
+		{
 			for (int j = 0; j < taskAddTestNum; ++j)
 			{
 				auto r1 = xPool->submit([j]()
@@ -65,7 +65,7 @@ int main()
 				results.push_back(r1);
 			}
 
-	});
+		});
 	timeTest("添加任务", [&]() mutable
 		{
 			for (int j = 0; j < taskAddTestNum; ++j)
@@ -82,10 +82,10 @@ int main()
 
 				results.push_back(r1);
 			}
-			
-		
+
+
 		});
-	
+
 
 	// timeTest("生成uuid100000个", [&]()
 	// {
@@ -101,13 +101,14 @@ int main()
 	//
 	// }
 	system("pause");
-	std::cout<<xPool->dumpWorkers() << std::endl;
+	std::cout << xPool->dumpWorkers() << std::endl;
 	for (auto e : results)
 	{
 		std::lock_guard lock(resultsMutex_);
 		e->syncGetResult();
 	}
 	system("pause");
+
 	delete xPool;
 	results.clear();
 	system("pause");

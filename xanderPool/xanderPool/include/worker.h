@@ -13,7 +13,7 @@ namespace xander
 
     class Worker
     {
-   
+
     private:
         //task queue 
         XDeque<TaskBasePtr> normalTasks_;
@@ -30,12 +30,12 @@ namespace xander
         std::condition_variable shutdownCv_;
         std::mutex shutdownMutex_;
         std::atomic_bool isBusy_;
-    
+
     private:
         /// @brief  if all task deque is empty
         bool allTaskDequeEmpty()
         {
-            return normalTasks_.empty()&&highPriorityTasks_.empty()&&lowPriorityTasks_.empty();
+            return normalTasks_.empty() && highPriorityTasks_.empty() && lowPriorityTasks_.empty();
         }
     public:
         ///@brief create a new worker decorated by shared_ptr
@@ -73,7 +73,7 @@ namespace xander
                         isBusy_.store(true);
                         //run task
                         auto task = execute();
-                        
+
                         if (exitflag_)
                         {
                             shutdownCv_.notify_one();
@@ -100,10 +100,10 @@ namespace xander
         /// @brief decide a highest priority task
         std::optional<TaskBasePtr> decideHighestPriorityTask()
         {
-            
+
             if (highPriorityTasks_.empty() == false)
             {
-               return  highPriorityTasks_.tryPop();
+                return  highPriorityTasks_.tryPop();
             }
             else if (normalTasks_.empty() == false)
             {
@@ -138,10 +138,10 @@ namespace xander
         }
         ///@brief submit a task ,it maybe global function、lambda、member function
         template <typename F, typename... Args, typename  R = typename  std::invoke_result_t<F, Args...>>
-        TaskResultPtr<R> submit(F&& function, Args &&...args,const TaskBase::Priority & priority)
+        TaskResultPtr<R> submit(F&& function, Args &&...args, const TaskBase::Priority& priority)
         {
-            
-            auto task = std::make_shared<Task<F, R, Args...>>( std::forward<F>(function), std::forward<Args>(args)...);
+
+            auto task = std::make_shared<Task<F, R, Args...>>(std::forward<F>(function), std::forward<Args>(args)...);
             TaskResultPtr<R> taskResultPtr = TaskResult<R>::makeShared(std::move(task->getTaskPackaged().get_future()));
             task->setPriority(priority);
             task->setTaskResult(taskResultPtr);
@@ -159,19 +159,19 @@ namespace xander
                 taskCv_.notify_one();
                 return;
             }
-             if (task->priority() == TaskBase::High)
+            if (task->priority() == TaskBase::High)
             {
                 highPriorityTasks_.enqueue(task);
                 taskCv_.notify_one();
                 return;
             }
-             if (task->priority() == TaskBase::low)
+            if (task->priority() == TaskBase::low)
             {
                 lowPriorityTasks_.enqueue(task);
                 taskCv_.notify_one();
                 return;
             }
-           
+
         }
         ///@brief execute a task and it`s all linked task
         TaskBasePtr  execute()
@@ -181,7 +181,8 @@ namespace xander
             {
                 auto task = taskOpt.value();
                 task->run();
-            }else
+            }
+            else
             {
                 return  nullptr;
             }
@@ -212,8 +213,8 @@ namespace xander
         size_t lowPriorityTaskCount() { return lowPriorityTasks_.size(); }
         [[maybe_unused]] void clear()
         {
-            
-                normalTasks_.clear();
+
+            normalTasks_.clear();
         }
 
     };
