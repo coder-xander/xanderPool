@@ -3,7 +3,7 @@
 #include <future>
 #include <iomanip>
 #include <shared_mutex>
-#include "../worker/worker.h"
+#include "worker/worker.h"
 namespace xander
 {
 	///@brief thread safe, memory safe. the thread pool ,recommend to use the singleton,if you want to use the singleton,please use the instance() function

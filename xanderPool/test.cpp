@@ -1,5 +1,6 @@
-﻿#include <future>
-#include "pool/xpool.h"
+﻿#include <deque>
+#include <future>
+#include "xpool.h"
 #include "worker/worker.h"
 #include "tool.h"
 #include "task/task.h"
@@ -38,47 +39,53 @@ int main()
 	// 添加一个全局函数
 	std::vector<TaskResultPtr<long long>> results;
 	std::mutex resultsMutex_;
-	//记录开始时间
-	auto start = std::chrono::system_clock::now();
-	for (int i = 0; i < 10; ++i)
-	{
-		auto f = std::async([&]()
-			{
 
-			});
 
-	}
 	// auto ds = xander::makeTask("ds",[]()
 	// {
 	// 		auto r = 2 + 34;
 	// 	    return r;
 	// });
 	XPool * xPool = new XPool(2,12);
-	std::deque<std::string> testDeq_;
-	constexpr  int taskAddTestNum{ 10000 };//添加任务的数量
-	// timeTest("添加任务", [&]() mutable
-	// 	{
-	// 		for (int j = 0; j < taskAddTestNum; ++j)
-	// 		{
-	// 			auto r1 = xPool->submit([j]()
-	// 				{
-	// 					std::this_thread::sleep_for(std::chrono::milliseconds(20));
-	// 					auto r = fib(12);
-	// 					return r;
-	// 				}, TaskBase::Priority::Normal);
-	// 			results.push_back(r1);
-	// 		}
-	// 		
-	// 	
-	// 	});
-	 auto f = xPool->submit([]()
+	deque<std::string> testDeq_;
+
+	constexpr  int taskAddTestNum{ 100 };//添加任务的数量
+	auto f =  std::async(launch::async, [xPool, &results, &resultsMutex_]()
+	{
+			for (int j = 0; j < taskAddTestNum; ++j)
+			{
+				auto r1 = xPool->submit([j]()
+					{
+						std::this_thread::sleep_for(std::chrono::milliseconds(20));
+						auto r = fib(12);
+						std::cout << "sub thread added \n";
+						return r;
+					}, TaskBase::Priority::Normal);
+				std::lock_guard lock(resultsMutex_);
+				results.push_back(r1);
+			}
+
+	});
+	timeTest("添加任务", [&]() mutable
 		{
-			std::this_thread::sleep_for(std::chrono::milliseconds(20));
-			auto r = fib(12);
-			std::cout << "res from fib :" <<std::to_string(r)<< std::endl;
-			return r;
-		 }, TaskBase::Priority::Normal); 
-	 auto rr = f->syncGetResult();
+			for (int j = 0; j < taskAddTestNum; ++j)
+			{
+				auto r1 = xPool->submit([j]()
+					{
+						std::this_thread::sleep_for(std::chrono::milliseconds(20));
+						auto r = fib(12);
+						std::cout << "main thread added \n";
+
+						return r;
+					}, TaskBase::Priority::Normal);
+				std::lock_guard lock(resultsMutex_);
+
+				results.push_back(r1);
+			}
+			
+		
+		});
+	
 
 	// timeTest("生成uuid100000个", [&]()
 	// {
@@ -102,6 +109,7 @@ int main()
 	}
 	system("pause");
 	results.clear();
+	delete xPool;
 	// system("pause");
 	return 0;
 

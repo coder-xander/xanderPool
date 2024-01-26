@@ -69,7 +69,7 @@ namespace xander
 			return shared_from_this();
 		}
 		///@brief this function will be called by pool.give a taskResult to decorate task`s result.
-		void setTaskResult(TaskResultPtr<R> taskResultPtr)
+		void setTaskResult(TaskResultPtr<R> taskResultPtr)  
 		{
 			taskResultPtr_ = taskResultPtr;
 		}

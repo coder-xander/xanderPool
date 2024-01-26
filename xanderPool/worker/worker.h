@@ -5,7 +5,7 @@
 #include <random>
 #include <sstream>
 
-#include "../queue/queue.h"
+#include "../queue.h"
 #include "../task/taskResult.h"
 #include "../task/task.h"
 ///@brief  worker is a thread to run task,it container three priority queue of different priority task.
@@ -152,7 +152,6 @@ namespace xander
             taskCv_.notify_one();
             return taskResultPtr;
         }
-   
         /// @brief enqueue by priority.
         void enQueueTaskByPriority(TaskBasePtr task)
         {
