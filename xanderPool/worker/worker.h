@@ -144,7 +144,7 @@ namespace xander
         {
             
             auto task = std::make_shared<Task<F, R, Args...>>( std::forward<F>(function), std::forward<Args>(args)...);
-            TaskResultPtr taskResultPtr = TaskResult<R>::makeShared(std::move(task->getTaskPackaged().get_future()));
+            TaskResultPtr<R> taskResultPtr = TaskResult<R>::makeShared(std::move(task->getTaskPackaged().get_future()));
             task->setPriority(priority);
             task->setTaskResult(taskResultPtr);
             taskResultPtr->setTask(task);
@@ -153,7 +153,7 @@ namespace xander
             return taskResultPtr;
         }
    
-        /// @brief enqueue by priority
+        /// @brief enqueue by priority.
         void enQueueTaskByPriority(TaskBasePtr task)
         {
             if (task->priority() == TaskBase::Normal)
@@ -182,16 +182,8 @@ namespace xander
             auto taskOpt = decideHighestPriorityTask();//起始task
             if (taskOpt.has_value())
             {
-                std::optional<std::shared_ptr<TaskBase>> tempTaskBasePtr = nullptr;
                 auto task = taskOpt.value();
                 task->run();
-                while (task->getNextRelatedTask().has_value())
-                {
-                    task = task->getNextRelatedTask().value();
-                    task->run();
-                }
-
-                
             }else
             {
                 return  nullptr;

@@ -33,8 +33,6 @@ namespace xander
 
 		virtual ~TaskBase() = default;
 		virtual std::shared_ptr<TaskBase> run() = 0;
-		virtual std::optional<std::shared_ptr<TaskBase>> getNextRelatedTask()=0;
-		virtual void setNextRelatedTask(std::shared_ptr<TaskBase> nextRelatedTask) = 0;
 	};
 
 	/// @brief the task class 
@@ -51,12 +49,12 @@ namespace xander
 			: packagedFunc_(std::bind(std::forward<F>(function), std::forward<Args>(args)...))
 		{
 			priority_ = Priority::Normal;
-			nextRelatedTask_ = std::nullopt;
+
 		}
 		explicit Task(std::packaged_task<R(Args ...)> packagedTask):packagedFunc_(std::move(packagedTask))
 		{
 			priority_ = Priority::Normal;
-			nextRelatedTask_ = std::nullopt;
+			
 		}
 		Task() = delete;
 		///@brief destructor,automatic
@@ -75,17 +73,7 @@ namespace xander
 		{
 			taskResultPtr_ = taskResultPtr;
 		}
-		///@brief this function will be called by Worker,give a related task for another task ,the given task will be run after this task.
-		void setNextRelatedTask(std::shared_ptr<TaskBase> nextRelatedTask)
-		{
-			nextRelatedTask_ = nextRelatedTask;
-		}
-		///@brief get the next task of this task 
-		std::optional<std::shared_ptr<TaskBase>> getNextRelatedTask()
-		{
-			return nextRelatedTask_;
-
-		}
+		
 		///@brief get TaskResultPtr
 		auto taskResult()
 		{
@@ -102,8 +90,7 @@ namespace xander
 		std::packaged_task<R() > packagedFunc_;
 		//task result decorated by TaskResultPtr
 		TaskResultPtr<R> taskResultPtr_;
-		//the next task of this task
-		std::optional<std::shared_ptr<TaskBase>> nextRelatedTask_;
+		
 	};
 	using TaskBasePtr = std::shared_ptr<TaskBase>;
 }
