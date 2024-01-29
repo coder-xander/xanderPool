@@ -4,6 +4,7 @@
 #include <iomanip>
 #include <shared_mutex>
 #include "worker.h"
+#include <mutex>
 namespace xander
 {
 	///@brief thread safe, memory safe. the thread pool ,recommend to use the singleton,if you want to use the singleton,please use the instance() function
@@ -39,43 +40,45 @@ namespace xander
 			startWorkersGc();
 		}
 
+		///@brief deconstruct
+		///waiting for every worker to finish the current task,then end the thread,abandon all the task which is not finished
+		~XPool()
+		{
+			const auto f = asyncDestroyed();
+			f.wait();
+		}
+	private:
+		///@brief async deconstruct all workers and handle something before delete this object
 		std::future<bool> asyncDestroyed()
 		{
 			return  std::async(std::launch::async, [this]()
 				{
-					std::cout << "~XPool" << "\n";
+
 					timerThreadExitFlag_.store(true);
 					if (timerThread_.joinable())
 					{
 						timerThread_.join();
 					}
+					std::lock_guard lock(workersMutex_);
 					std::vector<std::future<bool>> fs;
-					for (auto e : workers_)
+					for (const auto& e : workers_)
 					{
 						auto f = std::async([this, e]() {return e->shutdown(); });
 						fs.push_back(std::move(f));
 					}
-					for (auto& f : fs)
+
+					for (const auto& f : fs)
 					{
 						f.wait();
 					}
-					std::lock_guard lock(workersMutex_);
 					workers_.clear();
-
-
+					std::cout << "~XPool" << "\n";
 					return true;
 				});
 
 
 		}
 
-		///@brief deconstruct
-		///waiting for every worker to finish the current task,then end the thread,abandon all the task which is not finished
-		~XPool()
-		{
-			auto f = asyncDestroyed();
-			f.wait();
-		}
 	private:
 
 		std::shared_mutex workersMutex_;
@@ -100,8 +103,8 @@ namespace xander
 					{
 						std::chrono::milliseconds dura(workerExpiryTime_);
 						std::this_thread::sleep_for(dura);
-						std::lock_guard lock(workersMutex_);
-						printf_s("calculation :\n");
+						std::unique_lock lock(workersMutex_);
+						printf_s("collecting ... :\n");
 						auto itr = workers_.begin();
 						while (itr != workers_.end()) {
 							if (workers_.size() > workerMinNum_)
@@ -123,9 +126,10 @@ namespace xander
 								break;
 							}
 						}
+						lock.unlock();
 						printf_s(dumpWorkers().data());
 					}
-
+					printf_s("garbage collection timer thread destroyed . :\n");
 				});
 
 		}
@@ -152,7 +156,7 @@ namespace xander
 		TaskResultPtr<Rt> submit(F&& f, Args &&...args, const TaskBase::Priority& priority = TaskBase::Normal)
 		{
 			const auto worker = decideWorkerIdlePriority();
-			auto result = worker->submit(std::forward<F>(f), std::forward<Args>(args)..., priority);
+			const auto result = worker->submit(std::forward<F>(f), std::forward<Args>(args)..., priority);
 			return result;
 		}
 		///@brief add a new worker to the workers container
@@ -160,7 +164,7 @@ namespace xander
 		auto addAWorker()
 		{
 			std::cout << "add Worker" << "\n";
-			auto w = Worker::makeShared();
+			const auto w = Worker::makeShared();
 			workers_.push_back(w);
 			return w;
 		}
@@ -224,7 +228,7 @@ namespace xander
 			ss << "+-------------------+-------------------+-------------------+-------------------+\n";
 			ss << "| Thread ID         | Low Priority Num  | Normal Task Num   | High Priority Num |\n";
 			ss << "+-------------------+-------------------+-------------------+-------------------+\n";
-
+			std::lock_guard lock(workersMutex_);
 			for (const auto& worker : workers_)
 			{
 				auto lowTaskNum = worker->lowPriorityTaskCount();

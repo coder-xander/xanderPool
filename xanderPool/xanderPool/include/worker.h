@@ -85,6 +85,23 @@ namespace xander
                     std::cout << "worker thread exit" << std::endl;
                 });
         }
+        ///@brief force shutdown worker and forgive all task in queue weather it is finished or not
+        [[maybe_unused]]
+        bool shutdown()
+        {
+            exitflag_.store(true);
+            taskCv_.notify_one();
+            std::unique_lock   lock(shutdownMutex_);
+            shutdownCv_.wait(lock);
+            std::lock_guard threadLock(threadMutex_);
+            if (thread_.joinable())
+            {
+                thread_.join();
+                return true;
+            }
+            return true;
+        }
+
         ///@brief get string id 
         std::string idString()
         {
@@ -188,22 +205,6 @@ namespace xander
             }
 
             return nullptr;
-        }
-        ///@brief force shutdown worker and forgive all task in queue weather it is finished or not
-        [[maybe_unused]]
-        bool shutdown()
-        {
-            exitflag_.store(true);
-            std::unique_lock   lock(shutdownMutex_);
-            taskCv_.notify_one();
-            shutdownCv_.wait(lock);
-            std::lock_guard threadLock(threadMutex_);
-            if (thread_.joinable())
-            {
-                thread_.join();
-                return true;
-            }
-            return true;
         }
 
         [[maybe_unused]] bool removeTask(size_t taskId);
