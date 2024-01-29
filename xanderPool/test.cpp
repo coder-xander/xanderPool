@@ -80,7 +80,7 @@ int main()
             auto task4 = makeTask(TaskBase::Normal, &ClassA::memberFunc, &ca, 1, 2);
             auto task2 = makeTask([]()
                 {
-                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                    std::this_thread::sleep_for(std::chrono::milliseconds(20));
                     auto r = fib(12);
                     std::cout << " task2 running  \n";
                     return r;
@@ -92,7 +92,10 @@ int main()
                     std::cout << " task2 running  \n";
                     return r;
                 });
-            xPool->submitSome({ task2 ,task2,task2 });
+            for (int i = 0; i < 150; ++i)
+            {
+                xPool->submitSome({ task2->copy() });
+            }
         });
 
 
@@ -109,6 +112,7 @@ int main()
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     delete xPool;
     results.clear();
+    system("pause");
     return 0;
 
 }

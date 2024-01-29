@@ -122,11 +122,11 @@ namespace xander
             {
                 return  highPriorityTasks_.tryPop();
             }
-            else if (normalTasks_.empty() == false)
+            if (normalTasks_.empty() == false)
             {
                 return normalTasks_.tryPop();
             }
-            else if (lowPriorityTasks_.empty() == false)
+            if (lowPriorityTasks_.empty() == false)
             {
                 return lowPriorityTasks_.tryPop();
             }
