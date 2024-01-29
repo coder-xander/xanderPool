@@ -30,7 +30,6 @@ namespace xander
         {
             return priority_;
         }
-        auto getTaskResult() {}
         virtual ~TaskBase() = default;
         virtual std::shared_ptr<TaskBase> run() = 0;
     };
@@ -45,7 +44,7 @@ namespace xander
 
 
     public:
-        ///@brief  copy a task exist.it will take some time.callable function and priority will be copied.
+        ///@brief  copy a task already exist.callable function and priority will be copied.it will take few time.
         std::shared_ptr<Task<F, R, Args ...>>copy()
         {
             return std::make_shared<Task<F, R, Args ...>>(f_, priority_);
@@ -69,7 +68,6 @@ namespace xander
         }
     private:
         Task() = default;
-
     public:
         ///@brief destructor,automatic
         ~Task() override
@@ -87,7 +85,7 @@ namespace xander
         {
             taskResultPtr_ = taskResultPtr;
         }
-        ///@brief why so simple a function ? the constructor is not good to obtain "this".you no need to use it.
+        ///@brief why so simple a function ? the constructor is not good to obtain "this".
         void build()
         {
             taskResultPtr_->setTask(shared_from_this());

@@ -55,14 +55,10 @@ namespace xander
                     return future_.get();
                 }
             }
-            else
+            std::cout << "wait for result timeout" << std::endl;
+            if constexpr (!std::is_same_v<void, R>)
             {
-                std::cout << "wait for result timeout" << std::endl;
-                if constexpr (!std::is_same_v<void, R>)
-                {
-                    return  std::nullopt;
-                }
-                //else return void 
+                return  std::nullopt;
             }
         }
 

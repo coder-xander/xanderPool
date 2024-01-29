@@ -190,22 +190,23 @@ namespace xander
             const auto worker = decideWorkerByIdlePriorityPolicy();
             return worker->submit(task, TaskBase::Normal);
         }
-        auto submit(TaskBasePtr task)
+        void submit(TaskBasePtr task)
         {
             const auto worker = decideWorkerByIdlePriorityPolicy();
             return worker->submit(task, TaskBase::Normal);
         }
-        /// @brief pool accept some tasks,they must have the same return type
+        /// @brief pool accept some tasks,this function have no return value,you can use origin task (you just given) instance to get result.
         ///	@param f task function type
         ///	@param args task function args type
         ///	@return task result
-        auto  submitSome(std::vector<TaskBasePtr> tasks)
+        void  submitSome(std::vector<TaskBasePtr> tasks)
         {
             for (auto e : tasks)
             {
                 submit(e);
             }
         }
+
         ///@brief add a new worker to the workers container
         ///@return WorkerPtr worker just added
         auto addAWorker()

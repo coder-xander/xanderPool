@@ -23,7 +23,7 @@ public:
         return  std::to_string(a) + std::to_string(b);
     }
 };
-// 计算斐波那契数列的函数
+// 计算斐波那契数列
 long long fib(int n)
 {
     if (n <= 1)
@@ -65,7 +65,7 @@ int main()
             }
         };
 
-    std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!add task begin !" << std::endl;
+    std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! add task begin !" << std::endl;
     timeTest("添加任务", [&]() mutable
         {
             // addTask(100000);
@@ -80,7 +80,6 @@ int main()
             auto task4 = makeTask(TaskBase::Normal, &ClassA::memberFunc, &ca, 1, 2);
             auto task2 = makeTask([]()
                 {
-                    std::this_thread::sleep_for(std::chrono::milliseconds(20));
                     auto r = fib(12);
                     std::cout << " task2 running  \n";
                     return r;
@@ -89,7 +88,7 @@ int main()
                 {
                     std::this_thread::sleep_for(std::chrono::milliseconds(1));
                     auto r = fib(12);
-                    std::cout << " task2 running  \n";
+                    std::cout << " task5 running  \n";
                     return r;
                 });
             for (int i = 0; i < 150; ++i)

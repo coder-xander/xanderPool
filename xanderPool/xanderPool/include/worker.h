@@ -172,11 +172,11 @@ namespace xander
         }
 
         ///@brief submit a task that was made previously.so we can make a task and submit it later.
-        auto  submit(TaskBasePtr task, const TaskBase::Priority& priority)
+        void   submit(TaskBasePtr task, const TaskBase::Priority& priority)
         {
             enQueueTaskByPriority(task);//入队
             taskCv_.notify_one();
-            return task->getTaskResult();
+            return;
         }
 
         /// @brief enqueue by priority.
@@ -219,16 +219,12 @@ namespace xander
             return nullptr;
         }
 
-        [[maybe_unused]] bool removeTask(size_t taskId);
+        bool removeTask(size_t taskId);
         size_t taskCount() { return normalTasks_.size() + highPriorityTasks_.size() + lowPriorityTasks_.size(); }
         size_t normalPriorityTaskCount() { return normalTasks_.size(); }
         size_t highPriorityTaskCount() { return highPriorityTasks_.size(); }
         size_t lowPriorityTaskCount() { return lowPriorityTasks_.size(); }
-        [[maybe_unused]] void clear()
-        {
-
-            normalTasks_.clear();
-        }
+        void clear() { normalTasks_.clear(); }
 
     };
     using WorkerPtr = std::shared_ptr<Worker>;
