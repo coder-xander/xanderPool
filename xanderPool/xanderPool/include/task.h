@@ -49,11 +49,13 @@ namespace xander
 			: packagedFunc_(std::bind(std::forward<F>(function), std::forward<Args>(args)...))
 		{
 			priority_ = Priority::Normal;
+			taskResultPtr_ = TaskResult<R>::makeShared(std::move(getTaskPackaged().get_future()));
 
 		}
 		explicit Task(std::packaged_task<R(Args ...)> packagedTask) :packagedFunc_(std::move(packagedTask))
 		{
 			priority_ = Priority::Normal;
+			taskResultPtr_ = TaskResult<R>::makeShared(std::move(getTaskPackaged().get_future()));
 
 		}
 		Task() = delete;
@@ -73,7 +75,10 @@ namespace xander
 		{
 			taskResultPtr_ = taskResultPtr;
 		}
-
+		void build()
+		{
+			taskResultPtr_->setTask(shared_from_this());
+		}
 		///@brief get TaskResultPtr
 		auto taskResult()
 		{

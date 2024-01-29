@@ -54,9 +54,9 @@ int main()
             {
                 auto r1 = xPool->submit([i]()
                     {
-                        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+                        std::this_thread::sleep_for(std::chrono::milliseconds(1));
                         auto r = fib(12);
-                        // std::cout << "sub thread added \n";
+                        std::cout << " task running  \n";
                         return r;
                     }, TaskBase::Priority::Normal);
                 std::lock_guard lock(resultsMutex_);
@@ -70,32 +70,21 @@ int main()
             addTask(100000);
 
         });
+
+
+
+
+    std::cout << xPool->dumpWorkers() << std::endl;
+    for (auto e : results)
+    {
+        std::lock_guard lock(resultsMutex_);
+        e->syncGetResult();
+    }
+
+    system("pause");
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     delete xPool;
     results.clear();
-
-    // timeTest("生成uuid100000个", [&]()
-    // {
-    // 		std::vector<std::string> uuids;
-    // 	for (int i = 0; i < 100000; ++i)
-    // 	{
-    // 		uuids.push_back(Worker::generateUUID());
-    // 	}
-    // });
-    // for (int i = 0; i < testTimes_; ++i)
-    // {
-    // 	testDeq_.push_back("dsadsadsadasdsa");
-    //
-    // }
-
-    std::cout << xPool->dumpWorkers() << std::endl;
-    // for (auto e : results)
-    // {
-    // 	std::lock_guard lock(resultsMutex_);
-    // 	e->syncGetResult();
-    // }
-
-    system("pause");
     return 0;
 
 }
