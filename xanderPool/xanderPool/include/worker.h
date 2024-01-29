@@ -160,14 +160,15 @@ namespace xander
             auto task = makeTask(std::forward<F>(function), std::forward<Args>(args)...);
             enQueueTaskByPriority(task);//入队    
             taskCv_.notify_one();
-            return task->taskResult();
+            return task->getTaskResult();
         }
         ///@brief submit a task that was made previously.so we can make a task and submit it later.
-        auto submit(TaskBasePtr task, const TaskBase::Priority& priority)
+        template <typename F, typename... Args, typename  R = typename  std::invoke_result_t<F, Args...>>
+        TaskResultPtr<R> submit(TaskPtr<F, R, Args ...> task, const TaskBase::Priority& priority)
         {
             enQueueTaskByPriority(task);//入队
             taskCv_.notify_one();
-            return task->taskResult();
+            return task->getTaskResult();
         }
         /// @brief enqueue by priority.
         void enQueueTaskByPriority(TaskBasePtr task)

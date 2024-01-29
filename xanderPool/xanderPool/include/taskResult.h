@@ -31,7 +31,7 @@ namespace xander
         }
 
         ///@brief sync get result of task,will wait until result is ready,if result is void,return void,can only call once.
-        R syncGetResult()
+        auto  syncGetResult()
         {
             future_.wait();
             return future_.get();
@@ -74,14 +74,6 @@ namespace xander
         {
             return task_;
         }
-        template <typename F, typename... Args, typename  R_ = typename  std::invoke_result_t<F, R, Args...>>
-        R_ functionHelper(F&& function, R v, Args &&...args)
-        {
-
-            return   function(v, std::forward<Args>(args)...);
-        }
-
-
 
 
     private:

@@ -30,7 +30,7 @@ namespace xander
 		{
 			return priority_;
 		}
-		auto taskResult() {};
+		auto getTaskResult() {}
 		virtual ~TaskBase() = default;
 		virtual std::shared_ptr<TaskBase> run() = 0;
 	};
@@ -70,7 +70,7 @@ namespace xander
 			packagedFunc_();
 			return shared_from_this();
 		}
-		///@brief this function will be called by pool.give a taskResult to decorate task`s result.
+		///@brief this function will be called by pool.give a getTaskResult to decorate task`s result.
 		void setTaskResult(TaskResultPtr<R> taskResultPtr)
 		{
 			taskResultPtr_ = taskResultPtr;
@@ -79,8 +79,16 @@ namespace xander
 		{
 			taskResultPtr_->setTask(shared_from_this());
 		}
+		R syncGetResult()
+		{
+			return taskResultPtr_->syncGetResult();
+		}
+		std::conditional_t<std::is_same_v<void, R>, void, std::optional<R>> syncGetResult(int timeout)
+		{
+			return taskResultPtr_->syncGetResult(timeout);
+		}
 		///@brief get TaskResultPtr
-		auto taskResult()
+		TaskResultPtr<R> getTaskResult()
 		{
 			return taskResultPtr_;
 		}
@@ -98,9 +106,20 @@ namespace xander
 
 	};
 	using TaskBasePtr = std::shared_ptr<TaskBase>;
+	template <typename F, typename R, typename... Args>
+	using TaskPtr = std::shared_ptr<Task<F, R, Args...>>;
 	///@brief make a task,please use this function to create  a task .
 	template <typename F, typename... Args, typename R = typename std::invoke_result_t<F, Args...>>
-	std::shared_ptr<Task<F, R, Args...>> makeTask(F&& function, Args&&... args, TaskBase::Priority priority = TaskBase::Normal)
+	TaskPtr<F, R, Args...> makeTask(F&& function, Args&&... args)
+	{
+		auto task = std::make_shared<Task<F, R, Args...>>(std::forward<F>(function), std::forward<Args>(args) ...);
+		task->setPriority(TaskBase::Normal);
+		task->build();
+		return task;
+	}
+
+	template <typename F, typename... Args, typename R = typename std::invoke_result_t<F, Args...>>
+	std::shared_ptr<Task<F, R, Args...>> makeTask(const TaskBase::Priority& priority, F&& function, Args&&... args)
 	{
 		auto task = std::make_shared<Task<F, R, Args...>>(std::forward<F>(function), std::forward<Args>(args) ...);
 		task->setPriority(priority);

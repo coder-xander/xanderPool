@@ -61,6 +61,7 @@ int main()
                     }, TaskBase::Priority::Normal);
                 std::lock_guard lock(resultsMutex_);
                 results.push_back(r1);
+                xPool->submit(&ClassA::memberFunc, &ca, 1, 2);
             }
         };
 
@@ -68,23 +69,26 @@ int main()
     timeTest("添加任务", [&]() mutable
         {
             // addTask(100000);
-            auto task = makeTask([]()
-                {
-                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
-                    auto r = fib(12);
-                    std::cout << " task1 running  \n";
-                    return r;
-                }, TaskBase::Priority::Normal);
+            // auto task = makeTask([]()
+            //     {
+            //         std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            //         auto r = fib(12);
+            //         std::cout << " task1 running  \n";
+            //
+            //     }, TaskBase::Priority::Normal);
+            auto task3 = makeTask(TaskBase::Normal, []() {});
+            auto task4 = makeTask(TaskBase::Normal, &ClassA::memberFunc, &ca, 1, 2);
             auto task2 = makeTask([]()
                 {
                     std::this_thread::sleep_for(std::chrono::milliseconds(1));
                     auto r = fib(12);
                     std::cout << " task2 running  \n";
                     return r;
-                }, TaskBase::Priority::Normal);
-            xPool->submit(task, TaskBase::Priority::Normal);
-            xPool->submit(task2, TaskBase::Priority::Normal);
+                });
 
+            auto results = xPool->submitSome(std::vector{ task2 });
+            long long syncGetResult = results.front()->syncGetResult();
+            long long syncGetResult1 = results.front()->syncGetResult();
         });
 
 
