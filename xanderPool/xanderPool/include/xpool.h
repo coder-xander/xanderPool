@@ -206,7 +206,6 @@ namespace xander
                 submit(e);
             }
         }
-
         ///@brief add a new worker to the workers container
         ///@return WorkerPtr worker just added
         auto addAWorker()
@@ -255,8 +254,34 @@ namespace xander
             return r;
         }
 
-
-
+        ///@brief get num workers which is not busy.if all workers is busy,return workers which has the fewest tasks
+        std::vector<WorkerPtr> getIdleWorkers(int num)
+        {
+            std::lock_guard lock(workersMutex_);
+            std::vector<WorkerPtr> r;
+            for (auto worker : workers_)
+            {
+                if (!worker->isBusy())
+                {
+                    r.push_back(worker);
+                }
+            }
+            if (r.size() < num)
+            {
+                for (auto worker : workers_)
+                {
+                    if (worker->taskCount() < r.front()->taskCount())
+                    {
+                        r.push_back(worker);
+                    }
+                }
+            }
+            return r;
+        }
+        WorkerPtr getAnIdleWorker()
+        {
+            return getIdleWorkers(1).front();
+        }
         //打包一组任务为一个任务
         // template <typename F, typename... Args, typename  Rt = std::invoke_result_t < F, Args ...>>
         // TaskResultPtr<Rt> submitGroupAsOne(std::vector<std::pair<F, std::tuple<Args...>>> functions, const TaskBase::Priority& priority = TaskBase::Normal)
