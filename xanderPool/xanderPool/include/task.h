@@ -99,7 +99,7 @@ namespace xander
 	};
 	using TaskBasePtr = std::shared_ptr<TaskBase>;
 	///@brief make a task,please use this function to create  a task .
-	template <typename F, typename... Args, typename R = std::invoke_result_t<F, Args...>>
+	template <typename F, typename... Args, typename R = typename std::invoke_result_t<F, Args...>>
 	std::shared_ptr<Task<F, R, Args...>> makeTask(F&& function, Args&&... args, TaskBase::Priority priority = TaskBase::Normal)
 	{
 		auto task = std::make_shared<Task<F, R, Args...>>(std::forward<F>(function), std::forward<Args>(args) ...);

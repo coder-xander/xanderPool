@@ -160,7 +160,7 @@ namespace xander
 			return result;
 		}
 
-		/// @brief pool accept a task,decide a worker to accept it
+		/// @brief pool accept a task,the task is your made previously.so make anytime,and submit anytime
 		///	@param f task function type
 		///	@param args task function args type
 		///	@return task result
@@ -180,7 +180,7 @@ namespace xander
 			return w;
 		}
 
-		///@brief the policy of decide which worker to accept the next task ,this is the average policy ,all task will be distributed averagely
+		///@brief The policy of deciding which workers to assign the next task to follows an average policy, wherein all tasks are distributed to the workers evenly.
 		WorkerPtr decideAWorkerAverage()
 		{
 
@@ -189,7 +189,7 @@ namespace xander
 			return selectedThread;
 		}
 
-		///@brief the policy of decide which worker to accept the next task,this is the smarter policy called not busy first policy,if there is no idle worker,then choose the worker which has the least task
+		///@brief The policy that decides which worker accepts the next task is a smarter one, known as the 'Not Busy First' policy. If there are no idle workers, then the policy will select the worker who has the fewest tasks.
 		WorkerPtr decideWorkerIdlePriority()
 		{
 			std::lock_guard lock(workersMutex_);
