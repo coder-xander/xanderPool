@@ -85,10 +85,14 @@ int main()
                     std::cout << " task2 running  \n";
                     return r;
                 });
-
-            auto results = xPool->submitSome(std::vector{ task2 });
-            long long syncGetResult = results.front()->syncGetResult();
-            long long syncGetResult1 = results.front()->syncGetResult();
+            auto task5 = makeTask([]()
+                {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                    auto r = fib(12);
+                    std::cout << " task2 running  \n";
+                    return r;
+                });
+            xPool->submitSome({ task2 ,task2,task2 });
         });
 
 

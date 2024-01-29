@@ -181,11 +181,16 @@ namespace xander
             return worker->submit(task, priority);
         }
         /// @brief pool accept a task,the task is your made previously.so make anytime,and submit anytime
-       ///	@param f task function type
-       ///	@param args task function args type
-       ///	@return task result
+        ///	@param f task function type
+        ///	@param args task function args type
+        ///	@return task result
         template <typename F, typename... Args, typename  Rt = std::invoke_result_t < F, Args ...>>
         TaskResultPtr<Rt> submit(TaskPtr<F, Rt, Args...> task)
+        {
+            const auto worker = decideWorkerByIdlePriorityPolicy();
+            return worker->submit(task, TaskBase::Normal);
+        }
+        auto submit(TaskBasePtr task)
         {
             const auto worker = decideWorkerByIdlePriorityPolicy();
             return worker->submit(task, TaskBase::Normal);
@@ -194,26 +199,12 @@ namespace xander
         ///	@param f task function type
         ///	@param args task function args type
         ///	@return task result
-        template <typename F, typename... Args, typename  Rt = std::invoke_result_t < F, Args ...>>
-        std::vector< TaskResultPtr<Rt>> submitSome(std::vector<TaskPtr<F, Rt, Args ...>> tasks)
+        auto  submitSome(std::vector<TaskBasePtr> tasks)
         {
-            std::vector< TaskResultPtr<Rt>>results;
-            if constexpr (std::is_same_v<void, Rt>)
-            {
-                for (auto e : tasks)
-                {
-                    submit(e);
-
-                }
-                return  {};
-            }
             for (auto e : tasks)
             {
-                auto r = submit(e);
-                results.push_back(r);
+                submit(e);
             }
-            return  results;
-
         }
         ///@brief add a new worker to the workers container
         ///@return WorkerPtr worker just added
