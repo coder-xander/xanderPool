@@ -159,6 +159,17 @@ namespace xander
 			const auto result = worker->submit(std::forward<F>(f), std::forward<Args>(args)..., priority);
 			return result;
 		}
+
+		/// @brief pool accept a task,decide a worker to accept it
+		///	@param f task function type
+		///	@param args task function args type
+		///	@return task result
+
+		auto submit(TaskBasePtr task, const TaskBase::Priority& priority = TaskBase::Normal)
+		{
+			const auto worker = decideWorkerIdlePriority();
+			return worker->submit(task, priority);
+		}
 		///@brief add a new worker to the workers container
 		///@return WorkerPtr worker just added
 		auto addAWorker()

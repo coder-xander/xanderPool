@@ -30,7 +30,7 @@ namespace xander
 		{
 			return priority_;
 		}
-
+		auto taskResult() {};
 		virtual ~TaskBase() = default;
 		virtual std::shared_ptr<TaskBase> run() = 0;
 	};

@@ -67,7 +67,24 @@ int main()
     std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!add task begin !" << std::endl;
     timeTest("添加任务", [&]() mutable
         {
-            addTask(100000);
+            // addTask(100000);
+
+            auto task = makeTask([]()
+                {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                    auto r = fib(12);
+                    std::cout << " task1 running  \n";
+                    return r;
+                }, TaskBase::Priority::Normal);
+            auto task2 = makeTask([]()
+                {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                    auto r = fib(12);
+                    std::cout << " task2 running  \n";
+                    return r;
+                }, TaskBase::Priority::Normal);
+            xPool->submit(task, TaskBase::Priority::Normal);
+            xPool->submit(task2, TaskBase::Priority::Normal);
 
         });
 

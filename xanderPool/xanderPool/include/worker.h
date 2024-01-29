@@ -162,6 +162,13 @@ namespace xander
             taskCv_.notify_one();
             return task->taskResult();
         }
+        ///@brief submit a task that was made previously.so we can make a task and submit it later.
+        auto submit(TaskBasePtr task, const TaskBase::Priority& priority)
+        {
+            enQueueTaskByPriority(task);//入队
+            taskCv_.notify_one();
+            return task->taskResult();
+        }
         /// @brief enqueue by priority.
         void enQueueTaskByPriority(TaskBasePtr task)
         {
