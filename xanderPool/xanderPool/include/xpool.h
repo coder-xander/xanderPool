@@ -16,9 +16,7 @@ namespace xander
         ///setting two workers at least, and the max worker number is the cpu core number, and create two workers
         XPool()
         {
-            //最少有两个worker
             workerMinNum_.store(2);
-            //获取cpu核心数，创建对应数量线程，最多有处理器核心数量个
             workerMaxNum_.store(std::thread::hardware_concurrency());
             for (size_t i = 0; i < workerMinNum_.load(); i++)
             {

@@ -4,7 +4,6 @@
 #include <condition_variable>
 #include <functional>
 #include <optional>
-#include <iostream>
 namespace xander {
 
 	///@brief thread safe deque,all functions of this was thread safe
