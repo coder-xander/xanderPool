@@ -3,43 +3,45 @@
 #include <iostream>
 #include <optional>
 #include <memory>
-/// @brief 执行结果的返回值
+/// @brief the result of task execute 
 /// @author xander
 namespace xander
 {
     class TaskBase;
+    template <typename F, typename R, typename... Args >
+    class Task;
     template<typename  R>
     class TaskResult
     {
     public:
-        static std::shared_ptr<TaskResult> makeShared(std::string& id, std::future<R>&& future)
+        static std::shared_ptr<TaskResult> makeShared(std::future<R>&& future)
         {
-            return std::make_shared<TaskResult>(id, std::move(future));
+            return std::make_shared<TaskResult>(std::move(future));
         }
 
-        
-        TaskResult(std::string& id, std::future<R>&& future) : id_(id), future_(std::move(future))
+
+        TaskResult(std::future<R>&& future) : future_(std::move(future))
         {
 
         }
-        auto getId() const { return id_; }
+
         ~TaskResult()
         {
             // std::cout << " ~ExecuteResult" << std::endl;
         }
-        void setId(std::string& id) { id_ = id; };
-        ///@brief 同步获取结果,会一直等待，直到结果准备好
-        R syncGetValue()
+
+        ///@brief sync get result of task,will wait until result is ready,if result is void,return void,can only call once.
+        auto  syncGetResult()
         {
             future_.wait();
             return future_.get();
         }
-        /// @brief 在预期时间内同步获取结果
-        /// @param ms 超时时间，单位毫秒
-        /// @return 如果结果准备好，会立即返回optional，如果超时，返回std::nullopt,注意:void结果返回nullopt
-        std::conditional_t<std::is_same_v<void, R>, void, std::optional<R>> syncGetValue(int ms)
+        /// @brief sync get result of task in timeout,if result is void,return void,can only call once.
+        /// @param timeout 
+        /// @return if result is ready,return optional immediately,if timeout,return std::nullopt,notice:if result is void,return nullopt
+        std::conditional_t<std::is_same_v<void, R>, void, std::optional<R>> syncGetResult(int timeout)
         {
-            auto time = std::chrono::milliseconds(ms);
+            auto time = std::chrono::milliseconds(timeout);
             auto waitR = future_.wait_for(time);
             if (waitR == std::future_status::ready)
             {
@@ -53,14 +55,10 @@ namespace xander
                     return future_.get();
                 }
             }
-            else
+            std::cout << "wait for result timeout" << std::endl;
+            if constexpr (!std::is_same_v<void, R>)
             {
-                std::cout << "wait for result timeout" << std::endl;
-                if constexpr (!std::is_same_v<void, R>)
-                {
-                    return  std::nullopt;
-                }
-                //else return void 
+                return  std::nullopt;
             }
         }
 
@@ -72,8 +70,10 @@ namespace xander
         {
             return task_;
         }
+
+
     private:
-        std::string  id_;
+
         std::future<R> future_;
         std::weak_ptr<TaskBase> task_;
     };
@@ -82,5 +82,4 @@ namespace xander
     // using TaskResultWeakPtr = std::weak_ptr<TaskResult>;
 
 }
-//预声明。
 #include "task.h"
