@@ -14,9 +14,9 @@ namespace xander
     public:
         enum Priority
         {
-            High,
-            Normal,
-            low
+            High = 1,
+            Normal = 2,
+            low = 3
         };
     protected:
         //normal level is default priority

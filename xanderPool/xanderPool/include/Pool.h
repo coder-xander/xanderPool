@@ -251,7 +251,6 @@ namespace xander
         ///@brief The policy of deciding which workers to assign the next task to follows an average policy, wherein all tasks are distributed to the workers evenly.
         WorkerPtr decideAWorkerByAveragePolicy()
         {
-
             WorkerPtr selectedThread = workers_[nextWorkerIndex_];
             nextWorkerIndex_ = (nextWorkerIndex_ + 1) % workers_.size();
             return selectedThread;

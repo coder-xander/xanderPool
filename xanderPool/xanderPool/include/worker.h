@@ -70,7 +70,6 @@ namespace xander
                             shutdownCv_.notify_one();
                             break;
                         }
-                        isBusy_.store(true);
                         //run task
                         auto task = execute();
 
@@ -157,8 +156,9 @@ namespace xander
         template <typename F, typename... Args, typename  R = typename  std::invoke_result_t<F, Args...>>
         TaskResultPtr<R> submit(F&& function, Args &&...args, const TaskBase::Priority& priority)
         {
-            auto task = makeTask(priority,std::forward<F>(function), std::forward<Args>(args)...);
-            enQueueTaskByPriority(task);//入队    
+            auto task = makeTask(priority, std::forward<F>(function), std::forward<Args>(args)...);
+            enQueueTaskByPriority(task);//入队
+
             taskCv_.notify_one();
             return task->getTaskResult();
         }
@@ -185,18 +185,21 @@ namespace xander
             if (task->priority() == TaskBase::Normal)
             {
                 normalTasks_.enqueue(task);
+                isBusy_.store(true);
                 taskCv_.notify_one();
                 return;
             }
             if (task->priority() == TaskBase::High)
             {
                 highPriorityTasks_.enqueue(task);
+                isBusy_.store(true);
                 taskCv_.notify_one();
                 return;
             }
             if (task->priority() == TaskBase::low)
             {
                 lowPriorityTasks_.enqueue(task);
+                isBusy_.store(true);
                 taskCv_.notify_one();
                 return;
             }
