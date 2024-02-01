@@ -1,6 +1,6 @@
 ﻿#include <deque>
 #include <future>
-#include "xanderPool/include/xpool.h"
+#include "xanderPool/include/pool.h"
 #include "xanderPool/include/worker.h"
 #include "tool.h"
 #include "xanderPool/include/task.h"
@@ -46,7 +46,7 @@ int main()
     // 		auto r = 2 + 34;
     // 	    return r;
     // });
-    XPool* xPool = new XPool(2, 12);
+    Pool* xPool = new Pool(2, 12);
     deque<std::string> testDeq_;
     auto addTask = [&](auto num)
         {
@@ -80,7 +80,7 @@ int main()
             auto task4 = makeTask(TaskBase::Normal, &ClassA::memberFunc, &ca, 1, 2);
             auto task2 = makeTask([]()
                 {
-                    auto r = fib(12);
+                    auto r = fib(4);
                     std::cout << " task2 running  \n";
                     return r;
                 });
@@ -91,7 +91,7 @@ int main()
                     std::cout << " task5 running  \n";
                     return r;
                 });
-            for (int i = 0; i < 150; ++i)
+            for (int i = 0; i < 1000; ++i)
             {
                 xPool->submitSome({ task2->copy() });
             }

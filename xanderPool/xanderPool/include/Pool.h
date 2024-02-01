@@ -8,13 +8,25 @@
 namespace xander
 {
     ///@brief thread safe, memory safe. the thread pool ,recommend to use the singleton,if you want to use the singleton,please use the instance() function
-    ///whenever you deconstruct the XPool,all the task will be abandoned.
-    class XPool
+    ///whenever you deconstruct the Pool,all the task these unfinished will be abandoned.
+    class Pool
     {
+    private:
+
+        std::shared_mutex workersMutex_;
+        std::vector<WorkerPtr> workers_;//workers
+        size_t nextWorkerIndex_ = 0;//flag 
+        std::atomic_int workerMinNum_;
+        std::atomic_int workerMaxNum_;
+        inline static std::unique_ptr<Pool> instance_;//singleton
+        inline static std::mutex instanceMutex_;//singleton mutex
+        int workerExpiryTime_ = 1000 * 5;//the time of expiry worker,if the worker is not busy for workerExpiryTime_ mills,then the worker will be shutdown
+        std::thread timerThread_;//the garbage collection thread
+        std::atomic_bool timerThreadExitFlag_;
     public:
         ///@brief constructor
         ///setting two workers at least, and the max worker number is the cpu core number, and create two workers
-        XPool()
+        Pool()
         {
             workerMinNum_.store(2);
             workerMaxNum_.store(std::thread::hardware_concurrency());
@@ -26,7 +38,7 @@ namespace xander
         }
         ///@brief constructor
         ///setting  workerMinNum_ workers at least, and the max worker number is workerMaxNum, and create workerMinNum_ workers
-        explicit XPool(int workerMinNum, int workerMaxNum)
+        explicit Pool(int workerMinNum, int workerMaxNum)
         {
             workerMinNum_.store(workerMinNum);
             workerMaxNum_.store(workerMaxNum);
@@ -40,7 +52,7 @@ namespace xander
 
         ///@brief deconstruct
         ///waiting for every worker to finish the current task,then end the thread,abandon all the task which is not finished
-        ~XPool()
+        ~Pool()
         {
             const auto f = asyncDestroyed();
             f.wait();
@@ -70,25 +82,14 @@ namespace xander
                         f.wait();
                     }
                     workers_.clear();
-                    std::cout << "~XPool" << "\n";
+                    std::cout << "~Pool" << "\n";
                     return true;
                 });
 
 
         }
 
-    private:
 
-        std::shared_mutex workersMutex_;
-        std::vector<WorkerPtr> workers_;//workers
-        size_t nextWorkerIndex_ = 0;//flag 
-        std::atomic_int workerMinNum_;
-        std::atomic_int workerMaxNum_;
-        inline static std::unique_ptr<XPool> instance_;//singleton
-        inline static std::mutex instanceMutex_;//singleton mutex
-        int workerExpiryTime_ = 1000 * 5;//the time of expiry worker,if the worker is not busy for workerExpiryTime_ mills,then the worker will be shutdown
-        std::thread timerThread_;//the garbage collection thread
-        std::atomic_bool timerThreadExitFlag_;
 
     private:
         /// @brief manage worker resource .
@@ -133,15 +134,15 @@ namespace xander
         }
     public:
         ///@brief the thread safe singleton 
-        ///@return XPool*
-        static XPool* instance()
+        ///@return Pool*
+        static Pool* instance()
         {
             if (instance_ == nullptr)
             {
                 std::lock_guard<std::mutex> lock(instanceMutex_);
                 if (instance_ == nullptr)
                 {
-                    instance_.reset(new XPool());
+                    instance_.reset(new Pool());
                 }
             }
             return instance_.get();
