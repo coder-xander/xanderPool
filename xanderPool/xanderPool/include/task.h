@@ -22,9 +22,10 @@ namespace xander
         //normal level is default priority
         Priority 	priority_ = Normal;
     public:
-        void setPriority(const Priority& priority)
+        auto setPriority(const Priority& priority)
         {
             priority_ = priority;
+            return shared_from_this();
         }
         const auto& priority()const
         {

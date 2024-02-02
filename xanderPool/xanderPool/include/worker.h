@@ -154,9 +154,19 @@ namespace xander
         }
         ///@brief submit a task ,it maybe global function、lambda、member function
         template <typename F, typename... Args, typename  R = typename  std::invoke_result_t<F, Args...>>
-        TaskResultPtr<R> submit(F&& function, Args &&...args, const TaskBase::Priority& priority)
+        TaskResultPtr<R> submit(const TaskBase::Priority& priority, F&& function, Args &&...args)
         {
             auto task = makeTask(priority, std::forward<F>(function), std::forward<Args>(args)...);
+            enQueueTaskByPriority(task);//入队
+
+            taskCv_.notify_one();
+            return task->getTaskResult();
+        }
+        ///@brief submit a task ,it maybe global function、lambda、member function
+        template <typename F, typename... Args, typename  R = typename  std::invoke_result_t<F, Args...>>
+        TaskResultPtr<R> submit(F&& function, Args &&...args)
+        {
+            auto task = makeTask(TaskBase::Normal, std::forward<F>(function), std::forward<Args>(args)...);
             enQueueTaskByPriority(task);//入队
 
             taskCv_.notify_one();

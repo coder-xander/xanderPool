@@ -25,5 +25,13 @@ namespace xander
             std::cout << "Function " << functionName << " execution took " << duration.count() << " ms." << std::endl;
         }
     }
+#include <random>
 
+    TaskBase::Priority randomPriority()
+    {
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_int_distribution<> dis(1, 3);
+        return static_cast<TaskBase::Priority>(dis(gen));
+    }
 }

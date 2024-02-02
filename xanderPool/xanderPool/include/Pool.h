@@ -113,7 +113,7 @@ namespace xander
         TaskResultPtr<Rt> submit(F&& f, Args &&...args)
         {
             const auto worker = decideWorkerByIdlePriorityPolicy();
-            const auto result = worker->submit(std::forward<F>(f), std::forward<Args>(args)..., TaskBase::Normal);
+            const auto result = worker->submit(TaskBase::Normal, std::forward<F>(f), std::forward<Args>(args)...);
             return result;
         }
         /// @brief pool accept a task,decide a worker to accept it,this override provide a param to set priority of task 
@@ -124,7 +124,7 @@ namespace xander
         TaskResultPtr<Rt> submit(const TaskBase::Priority& priority, F&& f, Args &&...args)
         {
             const auto worker = decideWorkerByIdlePriorityPolicy();
-            const auto result = worker->submit(std::forward<F>(f), std::forward<Args>(args)..., priority);
+            const auto result = worker->submit(priority, std::forward<F>(f), std::forward<Args>(args)...);
             return result;
         }
 
@@ -137,7 +137,7 @@ namespace xander
         TaskResultPtr<Rt> submit(const TaskBase::Priority& priority, TaskPtr<F, Rt, Args...> task)
         {
             const auto worker = decideWorkerByIdlePriorityPolicy();
-            return worker->submit(task, priority);
+            return worker->submit(priority, task);
         }
         /// @brief pool accept a task,the task is your made previously.so make anytime,and submit anytime
         ///	@param f task function type
