@@ -1,5 +1,7 @@
 ﻿
 set(CMAKE_CXX_STANDARD 11)
+# 确保设置是正确传递给编译器的
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # 主项目
 add_executable (XanderThreadPool "tool.h" "test.cpp" )
 # 链接

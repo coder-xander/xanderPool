@@ -20,29 +20,34 @@ namespace xander
         std::atomic_int workerMaxNum_;
         inline static std::unique_ptr<Pool> instance_;//singleton
         inline static std::mutex instanceMutex_;//singleton mutex
-        int workerExpiryTime_ = 1000 * 5;//the time of expiry worker,if the worker is not busy for workerExpiryTime_ mills,then the worker will be shutdown
+        std::atomic_int workerExpiryTime_ ;//the time of expiry worker,if the worker is not busy for workerExpiryTime_ mills,then the worker will be shutdown
         std::thread timerThread_;//the garbage collection thread
         std::atomic_bool timerThreadExitFlag_;
     public:
         ///@brief constructor
         ///setting two workers at least, and the max worker number is the cpu core number, and create two workers
-        Pool()
+        explicit Pool()
         {
             workerMinNum_.store(2);
             workerMaxNum_.store(std::thread::hardware_concurrency());
+            workerExpiryTime_.store(5000) ;
             for (size_t i = 0; i < workerMinNum_.load(); i++)
             {
                 addAWorker();
             }
             startWorkersGc();
         }
+        void setWorkerExpiryTime(int workerExpiryTime)
+        {
+            workerExpiryTime_.store(workerExpiryTime);
+        }
         ///@brief constructor
         ///setting  workerMinNum_ workers at least, and the max worker number is workerMaxNum, and create workerMinNum_ workers
-        explicit Pool(int workerMinNum, int workerMaxNum)
+        explicit Pool(int workerMinNum, int workerMaxNum,int workerExpiryTime =5000)
         {
             workerMinNum_.store(workerMinNum);
             workerMaxNum_.store(workerMaxNum);
-
+            workerExpiryTime_.store(workerExpiryTime);
             for (size_t i = 0; i < workerMinNum_.load(); i++)
             {
                 addAWorker();
@@ -71,6 +76,13 @@ namespace xander
             }
             return instance_.get();
         }
+        ///@brief singleton resetting
+        static void singletonReset()
+        {
+            std::lock_guard<std::mutex> lock(instanceMutex_);
+            instance_.reset();
+            instance_ = nullptr;
+        }              
         ///@brief async deconstruct all workers and handle something before delete this object
         std::future<bool> asyncDestroyed()
         {
@@ -104,11 +116,11 @@ namespace xander
 
         //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
-        //----------------------------------override 1,submit F,R,Args... ---------------------------------------------------------------------------------------------
-        /// @brief pool accept a task,decide a worker to accept it,task is default normal priority
-        ///	@param f task function type
-        ///	@param args task function args type
-        ///	@return task result
+        //------------------Override 1, submit F,R,Args... -----------------------
+        ///@brief The pool receives a task and delegates it to a worker based on idle priority policy; tasks are normal priority by default.
+        ///@param f Task function type
+        ///@param args Task function argument types
+        ///@return Task result
         template <typename F, typename... Args, typename  Rt = std::invoke_result_t < F, Args ...>>
         TaskResultPtr<Rt> submit(F&& f, Args &&...args)
         {
@@ -116,10 +128,12 @@ namespace xander
             const auto result = worker->submit(TaskBase::Normal, std::forward<F>(f), std::forward<Args>(args)...);
             return result;
         }
-        /// @brief pool accept a task,decide a worker to accept it,this override provide a param to set priority of task 
-        ///	@param f task function type
-        ///@param args task function args type
-        ///@return task result
+
+        //------------------Override 2, submit priority task ---------------
+        ///@brief The pool receives a task and delegates it to a worker based on idle priority policy; this override allows specifying task priority.
+        ///@param f Task function type
+        ///@param args Task function argument types
+        ///@return Task result
         template <typename F, typename... Args, typename  Rt = std::invoke_result_t < F, Args ...>>
         TaskResultPtr<Rt> submit(const TaskBase::Priority& priority, F&& f, Args &&...args)
         {
@@ -128,21 +142,22 @@ namespace xander
             return result;
         }
 
-        //----------------------------------override 2,submit TaskPtr---------------------------------------------------------------------------------------------
-        /// @brief pool accept a task,the task is your made previously.so make anytime,and submit anytime
-        ///	@param f task function type
-        ///	@param args task function args type
-        ///	@return task result
+        //------------------Override 3, submit TaskPtr------------------
+        ///@brief The pool accepts a task that you have previously created. Submit it anytime. 
+        ///@param f Task function type
+        ///@param args Task function argument types
+        ///@return Task result
         template <typename F, typename... Args, typename  Rt = std::invoke_result_t < F, Args ...>>
         TaskResultPtr<Rt> submit(const TaskBase::Priority& priority, TaskPtr<F, Rt, Args...> task)
         {
             const auto worker = decideWorkerByIdlePriorityPolicy();
             return worker->submit(priority, task);
         }
-        /// @brief pool accept a task,the task is your made previously.so make anytime,and submit anytime
-        ///	@param f task function type
-        ///	@param args task function args type
-        ///	@return task result
+        //------------------Override 4, submit TaskPtr without priority -----------
+        ///@brief The pool accepts a task that you have previously created. Submit it anytime. 
+        ///@param f Task function type
+        ///@param args Task function argument types
+        ///@return Task result
         template <typename F, typename... Args, typename  Rt = std::invoke_result_t < F, Args ...>>
         TaskResultPtr<Rt> submit(TaskPtr<F, Rt, Args...> task)
         {
@@ -178,7 +193,7 @@ namespace xander
                 {
                     while (!timerThreadExitFlag_.load())
                     {
-                        std::chrono::milliseconds dura(workerExpiryTime_);
+                        std::chrono::milliseconds dura(workerExpiryTime_.load());
                         std::this_thread::sleep_for(dura);
                         std::unique_lock lock(workersMutex_);
                         printf_s("collecting ... :\n");

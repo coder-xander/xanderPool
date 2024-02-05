@@ -10,22 +10,35 @@ using namespace xander;
 
 long long globalFibFunction(int n)
 {
-    if (n <= 1)
+    if  (n <= 1)
+    {
+        
         return n;
+    }
     else
+    {
         return globalFibFunction(n - 1) + globalFibFunction(n - 2);
+
+    }
 }
 
 int main()
 {
+    auto  s = globalFibFunction(2);
     class ClassA
     {
     public:
+        //成员函数
         std::string memberFunction(int a, double b)
         {
             this_thread::sleep_for(std::chrono::milliseconds(300));
             return  std::to_string(a) + std::to_string(b);
         }
+        //伪函数
+       std::string operator() (){
+            printf_s("std::string operator() called \n");
+           return  "ok";
+       }
     };
     ClassA aobj;
     auto lambdaFunction = []()
@@ -33,31 +46,61 @@ int main()
             printf_s("hello ,xander \n");
 
         };
+    //----------------------------------------
+    auto asyncResult1 = Pool::instance()->submit([](double a,double b)
+    {
+            return pow(a, b);
 
-    Pool pool1 = Pool(3, 8);
+    },1.2,3);
+
+    double restlt = asyncResult1->syncGetResult();//
 
 
+
+
+    //----------------------------------------
+    Pool pool1 = Pool();
     pool1.submit(lambdaFunction);//submit lambda function
     pool1.submit(globalFibFunction, 12);//submit global function
     pool1.submit(&ClassA::memberFunction, &aobj, 1, 2);//submit member function
 
-    //pre build
+    //pre define
     auto task1 = makeTask(TaskBase::Normal, []() {});
     auto task2 = makeTask(TaskBase::Normal, globalFibFunction, 12);
     auto task3 = makeTask(TaskBase::Normal, &ClassA::memberFunction, ClassA(), 1, 2);
+    auto task4 = makeTask( aobj);
     pool1.submit(task1);
     pool1.submit(task2);
     pool1.submit(task3);
+    pool1.submit(task4);
     //submit batch
     pool1.submitSome({ task1->copy() ,task1->copy()->setPriority(TaskBase::High) });
+    //directly submit
+    pool1.submit(TaskBase::low, []() {});
+    timeTest("添加完成", [&pool1]()
+    {
+            for (int i = 0; i < 100000; i++)
+            {
+                pool1.submit([](){});
+            }
+    });
+    
+    pool1.submit(TaskBase::Normal,globalFibFunction, 12);
+    pool1.submit(TaskBase::High,&ClassA::memberFunction, &aobj, 1, 2);
+    pool1.submit(aobj);
 
     std::cout << pool1.dumpWorkers() << std::endl;
 
 
 
 
-
-
+    WorkerPtr  worker = Worker::makeShared();
+    auto result3  = worker->submit([]()
+    {
+        printf_s("hello ,I am a worker\n");
+        return 1 + 2;
+    });
+    result3->syncGetResult(200);
 
 
 
