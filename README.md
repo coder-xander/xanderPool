@@ -76,7 +76,7 @@ long long globalFibFunction(int n)
 ClassA aobj;
 ```
 
-3. lamda
+3. lambda
 
 ```cpp
   auto lambdaFunction = []()
