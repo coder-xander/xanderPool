@@ -19,7 +19,7 @@ xanderPool是一个易用简单、高性能、跨平台、内存自动管理、�
  double restlt = asyncResult1->syncGetResult();//1.7279999999999
 ```
 
-非常简单明了，xanderPool使用submit提交任务，使用异步结果TaskResult获取结果。到此已经可以正常使用xanderPool了。只需要一直使用提供的单例对象往里面添加各种任务即可。
+非常简单明了，xanderPool使用submit函数提交任务，使用异步结果TaskResult获取结果。到此已经可以正常使用xanderPool了。只需要一直使用提供的单例对象往里面添加各种任务即可。
 
 # 详细介绍
 
@@ -204,7 +204,7 @@ xanderPool不是一个静态线程池。可以动态创建和回收资源。
 
 Pool的submit函数在收到任务后，会决策出一个worker接受此任务。
 
-逻辑：在决策worker的时候，如果有空闲的worker直接让此worker接受这个任务，如果所有worker都忙，在worker的数量没有达到最大值的情况下，创建一个worker并让此worker接受任务，如果已经达到最大数量worker，就让worker中拥有最少数量的worker接受此任务。
+逻辑：在决策worker的时候，如果有空闲的worker直接让此worker接受这个任务，如果所有worker都忙，在worker的数量没有达到最大值的情况下，创建一个worker并让此worker接受任务，如果已经达到最大数量worker，就让worker中拥有最少数量task的worker接受此任务。
 
 通过此策略配合资源回收实现了workers的自动调节。
 
