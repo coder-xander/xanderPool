@@ -23,7 +23,7 @@ xanderPool是一个易用简单、高性能、跨平台、内存自动管理、�
 
 # 详细介绍
 
-#### xanderPool具有几个概念:
+#### xanderPool的几个概念
 
 1. 池子(pool）:接受任务并分配给worker，并管理着workers。
 2. 任务（task）：可调用对象的封装。
@@ -110,6 +110,67 @@ long long globalFibFunction(int n)
 
 所有xanderPool可以提交几乎所有类型的可调用对象，并且可以随处创建随处提交，请使用全局函数makeTask创建任何类型的任务。
 
+##### 批量提交
+
+Pool的submitSome函数接受一组任务。
+
+```cpp
+  auto task11 = makeTask([]()
+      {
+      std::cout<<"task11"<<std::endl;
+          return 1;
+      });
+
+  auto task12 = makeTask([]()
+      {
+          std::cout << "task12" << std::endl;
+
+           return "ssss";
+      });
+
+  pool1.submitSome({ task11,task12 });
+  int task11Result = task11->getTaskResult()->syncGetResult();
+```
+
+此函数没有返回值，如果想得到结果可以由代码所示的通过Task找到结果（通过getTaskResult函数）。这个设计的原因是因为task11和task12可能具有不同的返回值，那么submitSome函数应当返回tuple吗？考虑到tuple获取值时候使用的std::get的麻烦，不如直接使用task自身去获取自己的结果对象。
+
+##### 任务的复制
+
+同一个Task只能被提交给Worker一次，如果向想多次执行同一个任务，task提供了一个copy函数，可以方便的复制。
+
+```cpp
+pool1.submitSome({ task11,task12 });
+pool1.submitSome({ task11->copy(),task12->copy()->setPriority(TaskBase::High)});
+```
+
+复制了task11和task12并把task12的优先级提高到High再次执行。
+
+#### 任务结果的获取
+
+除了批量添加任务需要由任务自身获取结果，详情见批量提交。其他所有submit得返回值一律是TaskResultPtr,它包装了返回值的异步结果。接下来演示一个例子。
+
+```cpp
+     std::vector<TaskResultPtr<TaskBase::Priority>> asyncResult;//异步结果
+   for (int i = 0; i < 1000; ++i)
+   {
+    auto r =    pool1.submit([this]()
+           {
+               return randomPriority();
+           });
+    asyncResult.push_back(r);
+   }
+   std::vector<TaskBase::Priority> results;//结果
+   for (auto r : asyncResult)
+   {
+     auto res =   r->syncGetResult();
+     results.push_back(res);
+   }
+
+
+```
+
+提交了1000个任务获取1000个随机的优先级，通过两个容器存下异步结果，再使用syncGetResult获取到结果放进容器。syncGetResult函数可以填写时间参数单位是ms，如r->syncGetResult(100);表示将阻塞等待结果，超时时间为100ms，如果不写，则会一直等待，直到等到结果。
+
 #### 任务优先级
 
 xanderPool有非常简单的任务优先级系统。
@@ -162,6 +223,8 @@ cpu：10代i5
  });
 ```
 
+控制台:
+
 ![1707104137488](image/README/1707104137488.png)
 
 花费135ms。上面很多add worker打印，说明Pool正在动态的增加worker应对大量的任务。
@@ -210,3 +273,8 @@ worker是一个线程拥有者，那么你可以直接创建一个Worker，绕�
 那么为什么不直接向Pool去submit呢？之前提到过Pool会有任务分发的策略，你并不知道你的任务被分到了哪个worker，如果你的需求是很多个任务需要在一个线程中执行，那么你应该创建一个worker去提交这些任务。
 
 由此，通过xanderPool，无论是单线程的创建还是线程池的使用都是统一的api。
+
+#### 注意事项：
+
+1. 同一个Task只能被提交一次，如需要复制可以使用其copy成员函数。
+2. 一个TaskResult只能被获取一次结果，再次获取会报错。

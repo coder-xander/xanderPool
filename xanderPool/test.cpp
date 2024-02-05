@@ -76,14 +76,7 @@ int main()
     //submit batch
     pool1.submitSome({ task1->copy() ,task1->copy()->setPriority(TaskBase::High) });
     //directly submit
-    pool1.submit(TaskBase::low, []() {});
-    timeTest("添加完成", [&pool1]()
-    {
-            for (int i = 0; i < 100000; i++)
-            {
-                pool1.submit([](){});
-            }
-    });
+    
     
     pool1.submit(TaskBase::Normal,globalFibFunction, 12);
     pool1.submit(TaskBase::High,&ClassA::memberFunction, &aobj, 1, 2);
@@ -91,27 +84,53 @@ int main()
 
     std::cout << pool1.dumpWorkers() << std::endl;
 
+  
+    // WorkerPtr  worker = Worker::makeShared();
+    // auto result3  = worker->submit([]()
+    // {
+    //     printf_s("hello ,I am a worker\n");
+    //     return 1 + 2;
+    // });
+    // result3->syncGetResult(200);
+
+    //submit some
+    auto task11 = makeTask([]()
+        {
+        std::cout<<"task11"<<std::endl;
+            return 1;
+        });
+
+    auto task12 = makeTask([]()
+        {
+            std::cout << "task12" << std::endl;
+
+            return "ssss";
+        });
+
+    pool1.submitSome({ task11,task12 });
+    pool1.submitSome({ task11->copy(),task12->copy()->setPriority(TaskBase::High)});
+
+    int task11Result = task11->getTaskResult()->syncGetResult();
 
 
 
-    WorkerPtr  worker = Worker::makeShared();
-    auto result3  = worker->submit([]()
+
+    std::vector<TaskResultPtr<TaskBase::Priority>> asyncResult;
+    for (int i = 0; i < 1000; ++i)
     {
-        printf_s("hello ,I am a worker\n");
-        return 1 + 2;
-    });
-    result3->syncGetResult(200);
-
-
-
-
-
-
-
-
-
-
-
+     auto r =    pool1.submit([this]()
+            {
+                printf_s("hello ,I am a worker\n");
+                return randomPriority();
+            });
+     asyncResult.push_back(r);
+    }
+    std::vector<TaskBase::Priority> results;
+    for (auto r : asyncResult)
+    {
+      auto res =   r->syncGetResult();
+      results.push_back(res);''
+    }
 
 
 
