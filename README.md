@@ -73,6 +73,7 @@ long long globalFibFunction(int n)
          return  "fake func";
     }
  };
+ClassA aobj;
 ```
 
 3. lamda
@@ -169,7 +170,7 @@ pool1.submitSome({ task11->copy(),task12->copy()->setPriority(TaskBase::High)});
 
 ```
 
-提交了1000个任务获取1000个随机的优先级，通过两个容器存下异步结果，再使用syncGetResult获取到结果放进容器。syncGetResult函数可以填写时间参数单位是ms，如r->syncGetResult(100);表示将阻塞等待结果，超时时间为100ms，如果不写，则会一直等待，直到等到结果。
+提交了1000个任务获取1000个随机的优先级，通过异步容器存下异步结果，再使用syncGetResult获取到结果放进容器。syncGetResult函数可以填写时间参数单位是ms，如r->syncGetResult(100);表示将阻塞等待结果，超时时间为100ms，如果不写，则会一直等待，直到等到结果。
 
 #### 任务优先级
 
@@ -272,9 +273,13 @@ worker是一个线程拥有者，那么你可以直接创建一个Worker，绕�
 
 那么为什么不直接向Pool去submit呢？之前提到过Pool会有任务分发的策略，你并不知道你的任务被分到了哪个worker，如果你的需求是很多个任务需要在一个线程中执行，那么你应该创建一个worker去提交这些任务。
 
-由此，通过xanderPool，无论是单线程的创建还是线程池的使用都是统一的api。
+由此，通过xanderPool，无论是单线程的创建使用还是线程池的使用都是统一的api。
 
-#### 注意事项：
+#### 线程安全
+
+所有submit函数和submitSome函数都是线程安全的。
+
+#### 注意事项
 
 1. 同一个Task只能被提交一次，如需要复制可以使用其copy成员函数。
 2. 一个TaskResult只能被获取一次结果，再次获取会报错。
