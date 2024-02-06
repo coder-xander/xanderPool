@@ -279,4 +279,4 @@ All submit functions and submitSome functions are thread-safe.
 #### Attention Points
 
 1. The same Task can only be submitted once. If duplication is needed, use its copy member function.
-2. A TaskResult can only get a result once; attempting to do so again will result in an error. Can you translate this readme into English for me so that I can copy and paste it directly?
+2. A TaskResult can only get a result once; attempting to do so again will result in an error.
