@@ -24,6 +24,44 @@ namespace xander
         std::thread timerThread_;//the garbage collection thread
         std::atomic_bool timerThreadExitFlag_;
     public:
+       ///@brief the thread safe singleton 
+        ///@return Pool*
+        static Pool* instance()
+        {
+            if (instance_ == nullptr)
+            {
+                std::lock_guard<std::mutex> lock(instanceMutex_);
+                if (instance_ == nullptr)
+                {
+                    instance_.reset(new Pool());
+                }
+            }
+            return instance_.get();
+        }
+        ///@brief singleton resetting
+        static void singletonReset()
+        {
+            std::lock_guard<std::mutex> lock(instanceMutex_);
+            instance_.reset();
+            instance_ = nullptr;
+        }
+        //use static mode to create a static  pool、you can set the worker number，if the worker number is -1,then the worker number is the cpu core number
+        Pool* useStaticMode(int workerNum =-1)
+        {
+            if (workerNum == -1)
+            {
+                auto maxValue = std::thread::hardware_concurrency();
+                workerMaxNum_ = maxValue;
+                workerMinNum_ = maxValue;
+            }
+            else
+            {
+                workerMaxNum_ = workerNum;
+                workerMinNum_ = workerNum;
+            }
+           
+            return instance_.get();
+        }
         ///@brief add a new worker to the workers container
         ///@return WorkerPtr worker just added
         auto addAWorker()
@@ -71,27 +109,8 @@ namespace xander
             const auto f = asyncDestroyed();
             f.wait();
         }
-        ///@brief the thread safe singleton 
-        ///@return Pool*
-        static Pool* instance()
-        {
-            if (instance_ == nullptr)
-            {
-                std::lock_guard<std::mutex> lock(instanceMutex_);
-                if (instance_ == nullptr)
-                {
-                    instance_.reset(new Pool());
-                }
-            }
-            return instance_.get();
-        }
-        ///@brief singleton resetting
-        static void singletonReset()
-        {
-            std::lock_guard<std::mutex> lock(instanceMutex_);
-            instance_.reset();
-            instance_ = nullptr;
-        }              
+      
+           
         ///@brief async deconstruct all workers and handle something before delete this object
         std::future<bool> asyncDestroyed()
         {

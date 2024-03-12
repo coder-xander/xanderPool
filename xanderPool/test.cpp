@@ -52,6 +52,7 @@ http: // gitlab.ciqtek.com/epr/EPR200M_2.0/issues
     double restlt = asyncResult1->syncGetResult(); //
     //--------------------------------------------------------------------------------------------
     Pool pool1 = Pool();
+    pool1.useStaticMode();
     pool1.submit(lambdaFunction);                       // submit lambda function
     pool1.submit(globalFibFunction, 12);                // submit global function
     pool1.submit(&ClassA::memberFunction, &aobj, 1, 2); // submit member function
