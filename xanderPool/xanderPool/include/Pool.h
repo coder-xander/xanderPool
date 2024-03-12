@@ -24,6 +24,15 @@ namespace xander
         std::thread timerThread_;//the garbage collection thread
         std::atomic_bool timerThreadExitFlag_;
     public:
+        ///@brief add a new worker to the workers container
+        ///@return WorkerPtr worker just added
+        auto addAWorker()
+        {
+            std::cout << "add Worker" << "\n";
+            const auto w = Worker::makeShared();
+            workers_.push_back(w);
+            return w;
+        }
         ///@brief constructor
         ///setting two workers at least, and the max worker number is the cpu core number, and create two workers
         explicit Pool()
@@ -253,15 +262,7 @@ namespace xander
 
             return r;
         }
-        ///@brief add a new worker to the workers container
-        ///@return WorkerPtr worker just added
-        auto addAWorker()
-        {
-            std::cout << "add Worker" << "\n";
-            const auto w = Worker::makeShared();
-            workers_.push_back(w);
-            return w;
-        }
+     
 
         ///@brief The policy of deciding which workers to assign the next task to follows an average policy, wherein all tasks are distributed to the workers evenly.
         WorkerPtr decideAWorkerByAveragePolicy()

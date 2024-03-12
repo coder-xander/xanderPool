@@ -42,8 +42,6 @@ namespace xander
     template <typename F, typename R, typename... Args >
     class Task final : public TaskBase
     {
-
-
     public:
         ///@brief  copy a task already exist.callable function and priority will be copied.it will take few time.
         std::shared_ptr<Task<F, R, Args ...>>copy()
