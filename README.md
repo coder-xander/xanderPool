@@ -6,7 +6,7 @@
 
 xanderPool is a user-friendly, high-performance, cross-platform, automatic memory-managed, thread-safe, header-only, C++ 17 thread pool based on task priority. It aims to be a simple yet efficient thread pool with various ways to submit tasks, offering clear and straightforward design patterns and logic. It follows modern C++ coding styles.
 
-The thread pool is non-static and the number of threads is dynamically adjustable.
+It can be a dynamic thread pool or set as a static thread pool, with the number of threads dynamically adjusted or fixed.
 
 Built on the C++ standard library without relying on any other libraries, it's easy to integrate. You can get started quickly and efficiently utilize system thread resources by submitting task objects.
 
@@ -186,9 +186,9 @@ All of Pool's submit and the global makeTask function's first parameter can be t
 
 Logic: All workers managed by the Pool have three queues for three different priority levels. The threads owned by the worker always check from high to low priority, always executing the highest priority task in the queue first.
 
-#### Automatic Adjustment of Workers
+#### Automatically adjust the number of workers as a dynamic thread pool
 
-xanderPool is not a static thread pool. It can dynamically create and recycle resources.
+xanderPool can serve as a dynamic thread pool. Can dynamically create and recycle resources.
 
 ##### Creation
 
@@ -207,6 +207,12 @@ When the Pool's submit function receives a task, it will decide which worker to 
 Logic: If there are idle workers at the time of decision-making, the task is given to an idle worker. If all workers are busy and the number of workers has not reached the maximum; a worker is created, and the task is assigned to it. If the maximum number of workers is reached, the task is assigned to the worker with the fewest tasks.
 
 This strategy, combined with resource reclamation, achieves automatic adjustment of workers.
+
+#### As a static thread pool - fixed number of workers
+
+The minimum and maximum number of workers can be passed in through the constructor of Pool, creating a static thread pool with a fixed number of workers.
+
+The Pool also provides the useStaticMode function, which can be called after the Pool is created to make the Pool a static thread pool.
 
 #### Performance
 
