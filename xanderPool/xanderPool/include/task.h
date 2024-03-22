@@ -10,7 +10,17 @@ namespace xander
     /// @brief the task base class
     class TaskBase :public  std::enable_shared_from_this<TaskBase>
     {
-
+    private:
+        std::string name_;
+    public:
+        void setName(const std::string& name)
+        {
+            name_ = name;
+        }
+        const std::string& name()const
+        {
+            return name_;
+        }
     public:
         enum Priority
         {
@@ -22,6 +32,10 @@ namespace xander
         //normal level is default priority
         Priority 	priority_ = Normal;
     public:
+        TaskBase() :name_({})
+        {
+
+        }
         auto setPriority(const Priority& priority)
         {
             priority_ = priority;

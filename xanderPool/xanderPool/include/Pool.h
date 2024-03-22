@@ -20,12 +20,12 @@ namespace xander
         std::atomic_int workerMaxNum_;
         inline static std::unique_ptr<Pool> instance_;//singleton
         inline static std::mutex instanceMutex_;//singleton mutex
-        std::atomic_int workerExpiryTime_ ;//the time of expiry worker,if the worker is not busy for workerExpiryTime_ mills,then the worker will be shutdown
+        std::atomic_int workerExpiryTime_;//the time of expiry worker,if the worker is not busy for workerExpiryTime_ mills,then the worker will be shutdown
         std::thread timerThread_;//the garbage collection thread
         std::atomic_bool timerThreadExitFlag_;
     public:
-       ///@brief the thread safe singleton 
-        ///@return Pool*
+        ///@brief the thread safe singleton 
+         ///@return Pool*
         static Pool* instance()
         {
             if (instance_ == nullptr)
@@ -45,8 +45,25 @@ namespace xander
             instance_.reset();
             instance_ = nullptr;
         }
+        ///@bref find tasks by name
+        std::vector < TaskBasePtr> findTasks(const std::string& name)
+        {
+            std::vector<TaskBasePtr> r;
+            std::lock_guard lock(workersMutex_);
+            for (const auto& worker : workers_)
+            {
+                auto tasks = worker->findTasks(name);
+                for (const auto& task : tasks)
+                {
+                    r.push_back(task);
+                }
+            }
+            return r;
+        }
+
+
         //use static mode to create a static  pool、you can set the worker number，if the worker number is -1,then the worker number is the cpu core number
-        Pool* useStaticMode(int workerNum =-1)
+        Pool* useStaticMode(int workerNum = -1)
         {
             if (workerNum == -1)
             {
@@ -59,7 +76,7 @@ namespace xander
                 workerMaxNum_ = workerNum;
                 workerMinNum_ = workerNum;
             }
-           
+
             return instance_.get();
         }
         ///@brief add a new worker to the workers container
@@ -77,7 +94,7 @@ namespace xander
         {
             workerMinNum_.store(2);
             workerMaxNum_.store(std::thread::hardware_concurrency());
-            workerExpiryTime_.store(5000) ;
+            workerExpiryTime_.store(5000);
             for (size_t i = 0; i < workerMinNum_.load(); i++)
             {
                 addAWorker();
@@ -90,7 +107,7 @@ namespace xander
         }
         ///@brief constructor
         ///setting  workerMinNum_ workers at least, and the max worker number is workerMaxNum, and create workerMinNum_ workers
-        explicit Pool(int workerMinNum, int workerMaxNum,int workerExpiryTime =5000)
+        explicit Pool(int workerMinNum, int workerMaxNum, int workerExpiryTime = 5000)
         {
             workerMinNum_.store(workerMinNum);
             workerMaxNum_.store(workerMaxNum);
@@ -109,8 +126,8 @@ namespace xander
             const auto f = asyncDestroyed();
             f.wait();
         }
-      
-           
+
+
         ///@brief async deconstruct all workers and handle something before delete this object
         std::future<bool> asyncDestroyed()
         {
@@ -281,7 +298,7 @@ namespace xander
 
             return r;
         }
-     
+
 
         ///@brief The policy of deciding which workers to assign the next task to follows an average policy, wherein all tasks are distributed to the workers evenly.
         WorkerPtr decideAWorkerByAveragePolicy()

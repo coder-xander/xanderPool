@@ -14,18 +14,18 @@ namespace xander {
 		std::deque<T> deque_;
 		mutable std::mutex mutex_;
 		std::condition_variable condVar_;
-
 	public:
+		auto& deque() { return deque_; };
+		auto& mutex() const { return mutex_; };
+	public:
+
 		XDeque() = default;
 		XDeque(const XDeque& other)
 		{
 			std::lock_guard<std::mutex> lock(other.mutex_);
 			deque_ = other.deque_;
 		}
-		~XDeque()
-		{
-			// std::cout << "~XDeque" << std::endl;
-		}
+		~XDeque() = default;
 		///@brief push back the value to the deque
 		void enqueue(const T& value)
 		{
@@ -74,19 +74,6 @@ namespace xander {
 			std::lock_guard<std::mutex> lock(mutex_);
 			return deque_.size();
 		}
-
-		std::optional<T> find(std::function<bool(const T&)> adptor)
-		{
-			std::lock_guard<std::mutex> lock(mutex_);
-			for (T item : deque_)
-			{
-				if (adptor(item))
-					return item;
-			}
-			return std::nullopt;
-			// return T();
-		}
-
 		bool removeOne(const T& item)
 		{
 			std::lock_guard<std::mutex> lock(mutex_);

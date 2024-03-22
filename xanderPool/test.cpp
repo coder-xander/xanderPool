@@ -42,13 +42,13 @@ http: // gitlab.ciqtek.com/epr/EPR200M_2.0/issues
     };
     ClassA aobj;
     auto lambdaFunction = []()
-    {
-        printf_s("hello ,xander \n");
-    };
+        {
+            printf_s("hello ,xander \n");
+        };
     //----------------------------------------
     auto asyncResult1 = Pool::instance()->submit([](double a, double b)
-                                                 { return pow(a, b); },
-                                                 1.2, 3);
+        { return pow(a, b); },
+        1.2, 3);
     double restlt = asyncResult1->syncGetResult(); //
     //--------------------------------------------------------------------------------------------
     Pool pool1 = Pool();
@@ -61,12 +61,16 @@ http: // gitlab.ciqtek.com/epr/EPR200M_2.0/issues
     auto task2 = makeTask(TaskBase::Normal, globalFibFunction, 12);
     auto task3 = makeTask(TaskBase::Normal, &ClassA::memberFunction, ClassA(), 1, 2);
     auto task4 = makeTask(aobj);
+    task4->setName("AAA");
+
     pool1.submit(task1);
     pool1.submit(task2);
     pool1.submit(task3);
     pool1.submit(task4);
+    auto sharedPtrs = pool1.findTasks("AAA");
+
     //--------------------------------------------------------------------------------------------
-    pool1.submitSome({task1->copy(), task1->copy()->setPriority(TaskBase::High)});
+    pool1.submitSome({ task1->copy(), task1->copy()->setPriority(TaskBase::High) });
     // directly submit
     pool1.submit(TaskBase::Normal, globalFibFunction, 12);
     pool1.submit(TaskBase::High, &ClassA::memberFunction, &aobj, 1, 2);
@@ -75,23 +79,23 @@ http: // gitlab.ciqtek.com/epr/EPR200M_2.0/issues
 
     // submit some//--------------------------------------------------------------------------------------------
     auto task11 = makeTask([]()
-                           {
-        std::cout<<"task11"<<std::endl;
+        {
+            std::cout << "task11" << std::endl;
             return 1; });
     auto task12 = makeTask([]()
-                           {
+        {
             std::cout << "task12" << std::endl;
 
             return "ssss"; });
-    pool1.submitSome({task11, task12});
-    pool1.submitSome({task11->copy(), task12->copy()->setPriority(TaskBase::High)});
+    pool1.submitSome({ task11, task12 });
+    pool1.submitSome({ task11->copy(), task12->copy()->setPriority(TaskBase::High) });
     int task11Result = task11->getTaskResult()->syncGetResult();
     // performance  test--------------------------------------------------------------------------------------------
     std::vector<TaskResultPtr<TaskBase::Priority>> asyncResult;
     for (int i = 0; i < 1000; ++i)
     {
         auto r = pool1.submit([]()
-                              {
+            {
                 printf_s("hello ,I am a worker\n");
                 return randomPriority(); });
         asyncResult.push_back(r);

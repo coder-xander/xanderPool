@@ -84,6 +84,40 @@ namespace xander
                     std::cout << "worker thread exit" << std::endl;
                 });
         }
+
+        ///@brief find tasks by name
+        std::vector<TaskBasePtr> findTasks(const std::string& name)
+        {
+            std::vector<TaskBasePtr> tasks;
+            std::unique_lock<std::mutex>  lock(normalTasks_.mutex());
+            for (auto& task : normalTasks_.deque())
+            {
+                if (task->name() == name)
+                {
+                    tasks.push_back(task);
+                }
+            }
+            lock.unlock();
+            std::unique_lock <std::mutex>  lock1(highPriorityTasks_.mutex());
+            for (auto& task : highPriorityTasks_.deque())
+            {
+                if (task->name() == name)
+                {
+                    tasks.push_back(task);
+                }
+            }
+            lock1.unlock();
+            std::unique_lock <std::mutex>  lock2(lowPriorityTasks_.mutex());
+            for (auto& task : lowPriorityTasks_.deque())
+            {
+                if (task->name() == name)
+                {
+                    tasks.push_back(task);
+                }
+            }
+            lock2.unlock();
+            return tasks;
+        }
         ///@brief force shutdown worker and forgive all task in queue weather it is finished or not
         [[maybe_unused]]
         bool shutdown()
