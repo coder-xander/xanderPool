@@ -4,7 +4,7 @@
 
 ![GitHub last commit](https://img.shields.io/github/last-commit/coder-xander/xanderPool) 
 
-xanderPool is a user-friendly, high-performance, cross-platform, automatic memory-managed, thread-safe, header-only, C++ 17 thread pool based on task priority. It aims to be a simple yet efficient thread pool with various ways to submit tasks, offering clear and straightforward design patterns and logic. It follows modern C++ coding styles.
+xanderPool is a user-friendly, high-performance, cross-platform, automatic memory-managed, thread-safe, header-only, C++ 20 thread pool based on task priority. It aims to be a simple yet efficient thread pool with various ways to submit tasks, offering clear and straightforward design patterns and logic. It follows modern C++ coding styles.
 
 It can be a dynamic thread pool or set as a static thread pool, with the number of threads dynamically adjusted or fixed.
 
