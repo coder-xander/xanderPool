@@ -7,6 +7,7 @@
 #include "taskResult.h"
 #include "task.h"
 ///@brief  worker is a thread to run task,it container three priority queue of different priority task.
+#include <thread>
 
 namespace xander
 {
@@ -134,10 +135,8 @@ namespace xander
             }
             return true;
         }
-
-        ///@brief get string id 
-        std::string idString()
-        {
+        ///@brief get string id
+        std::string idString() const {
             std::ostringstream os;
             os << thread_.get_id();
             return os.str();

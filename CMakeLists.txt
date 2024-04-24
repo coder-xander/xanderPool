@@ -2,6 +2,8 @@
 # 并包含子项目。
 cmake_minimum_required (VERSION 3.8 )
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+# 设置最低版本为c++ 20
+set(CMAKE_CXX_STANDARD 20)
 # 确保设置是正确传递给编译器的
 project ("xanderPool")
 # 包含子项目。
