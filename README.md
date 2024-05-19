@@ -4,9 +4,9 @@
 
 ![GitHub last commit](https://img.shields.io/github/last-commit/coder-xander/xanderPool) 
 
-xanderPool is a user-friendly, high-performance, cross-platform, automatic memory-managed, thread-safe, header-only, C++ 20 thread pool based on task priority. It aims to be a simple yet efficient thread pool with various ways to submit tasks, offering clear and straightforward design patterns and logic. It follows modern C++ coding styles.
+xanderPool is a user-friendly, high-performance, cross-platform, automatic memory-managed, thread-safe, header-only, C++ 20 thread Pool based on task priority. It aims to be a simple yet efficient thread Pool with various ways to submit tasks, offering clear and straightforward design patterns and logic. It follows modern C++ coding styles.
 
-It can be a dynamic thread pool or set as a static thread pool, with the number of threads dynamically adjusted or fixed.
+It can be a dynamic thread Pool or set as a static thread Pool, with the number of threads dynamically adjusted or fixed.
 
 Built on the C++ standard library without relying on any other libraries, it's easy to integrate. You can get started quickly and efficiently utilize system thread resources by submitting task objects.
 
@@ -186,9 +186,9 @@ All of Pool's submit and the global makeTask function's first parameter can be t
 
 Logic: All workers managed by the Pool have three queues for three different priority levels. The threads owned by the worker always check from high to low priority, always executing the highest priority task in the queue first.
 
-#### Automatically adjust the number of workers as a dynamic thread pool
+#### Automatically adjust the number of workers as a dynamic thread Pool
 
-xanderPool can serve as a dynamic thread pool. Can dynamically create and recycle resources.
+xanderPool can serve as a dynamic thread Pool. Can dynamically create and recycle resources.
 
 ##### Creation
 
@@ -208,11 +208,11 @@ Logic: If there are idle workers at the time of decision-making, the task is giv
 
 This strategy, combined with resource reclamation, achieves automatic adjustment of workers.
 
-#### As a static thread pool - fixed number of workers
+#### As a static thread Pool - fixed number of workers
 
-The minimum and maximum number of workers can be passed in through the constructor of Pool, creating a static thread pool with a fixed number of workers.
+The minimum and maximum number of workers can be passed in through the constructor of Pool, creating a static thread Pool with a fixed number of workers.
 
-The Pool also provides the useStaticMode function, which can be called after the Pool is created to make the Pool a static thread pool.
+The Pool also provides the useStaticMode function, which can be called after the Pool is created to make the Pool a static thread Pool.
 
 #### Performance
 
@@ -278,7 +278,7 @@ You can keep this worker safely, and now you have a worker dedicated to working 
 
 So why not submit directly to the Pool? As previously mentioned, the Pool will have a task distribution strategy, and you won't know which worker your task has been assigned to. If your requirement is for many tasks to be executed in a single thread, you should create a worker and submit these tasks to it.
 
-Thus, with xanderPool, whether it is single-threaded creation and use or thread pool usage, the API is uniform.
+Thus, with xanderPool, whether it is single-threaded creation and use or thread Pool usage, the API is uniform.
 
 #### Thread Safety
 

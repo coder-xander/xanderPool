@@ -82,7 +82,7 @@ namespace xander
 
                     }
                     // state_.store(Shutdown);
-                    std::cout << "worker thread exit" << std::endl;
+
                 });
         }
 
@@ -133,6 +133,7 @@ namespace xander
                 thread_.join();
                 return true;
             }
+            std::cout << "worker thread destroed" << std::endl;
             return true;
         }
         ///@brief get string id

@@ -2,3 +2,5 @@ out/
 .vs/
 .vscode/
 *.log
+.idea/
+cmake-build-debug-mingw/

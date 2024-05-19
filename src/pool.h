@@ -143,7 +143,7 @@ namespace xander
                     std::vector<std::future<bool>> fs;
                     for (const auto& e : workers_)
                     {
-                        auto f = std::async([this, e]() {return e->shutdown(); });
+                        auto f = std::async([e]() {return e->shutdown(); });
                         fs.push_back(std::move(f));
                     }
 

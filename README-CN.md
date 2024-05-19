@@ -31,7 +31,7 @@ xanderPool是一个易用简单、高性能、跨平台、内存自动管理、�
 
 #### xanderPool的几个概念
 
-1. 池子(pool）:接受任务并分配给worker，并管理着workers。
+1. 池子(Pool）:接受任务并分配给worker，并管理着workers。
 2. 任务（task）：可调用对象的封装。
 3. 任务处理者（worker）。
 4. 任务结果（taskResult）
