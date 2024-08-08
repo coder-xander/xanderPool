@@ -37,7 +37,7 @@ TEST_F(PoolTest, SubmitLambdaFunction)
 {
     auto lambdaFunction = []()
     {
-        printf_s("hello, xander\n");
+        std::cout << "lambda function" << std::endl;
         return true;
     };
     auto asyncResult = pool.submit(lambdaFunction);

@@ -5,6 +5,7 @@
 #include <shared_mutex>
 #include "worker.h"
 #include <mutex>
+
 namespace xander
 {
     ///@brief thread safe, memory safe. the thread pool ,recommend to use the singleton,if you want to use the singleton,please use the instance() function
@@ -12,19 +13,20 @@ namespace xander
     class Pool
     {
     private:
-
         std::shared_mutex workersMutex_;
-        std::vector<WorkerPtr> workers_;//workers
-        size_t nextWorkerIndex_ = 0;//flag 
+        std::vector<WorkerPtr> workers_; //workers
+        size_t nextWorkerIndex_ = 0; //flag
         std::atomic_int workerMinNum_;
         std::atomic_int workerMaxNum_;
-        inline static std::unique_ptr<Pool> instance_;//singleton
-        inline static std::mutex instanceMutex_;//singleton mutex
-        std::atomic_int workerExpiryTime_;//the time of expiry worker,if the worker is not busy for workerExpiryTime_ mills,then the worker will be shutdown
-        std::thread timerThread_;//the garbage collection thread
+        inline static std::unique_ptr<Pool> instance_; //singleton
+        inline static std::mutex instanceMutex_; //singleton mutex
+        std::atomic_int workerExpiryTime_;
+        //the time of expiry worker,if the worker is not busy for workerExpiryTime_ mills,then the worker will be shutdown
+        std::thread timerThread_; //the garbage collection thread
         std::atomic_bool timerThreadExitFlag_;
+
     public:
-        ///@brief the thread safe singleton 
+        ///@brief the thread safe singleton
          ///@return Pool*
         static Pool* instance()
         {
@@ -38,6 +40,7 @@ namespace xander
             }
             return instance_.get();
         }
+
         ///@brief singleton resetting
         static void singletonReset()
         {
@@ -45,8 +48,9 @@ namespace xander
             instance_.reset();
             instance_ = nullptr;
         }
+
         ///@bref find tasks by name
-        std::vector < TaskBasePtr> findTasks(const std::string& name)
+        std::vector<TaskBasePtr> findTasks(const std::string& name)
         {
             std::vector<TaskBasePtr> r;
             std::lock_guard lock(workersMutex_);
@@ -79,6 +83,7 @@ namespace xander
 
             return instance_.get();
         }
+
         ///@brief add a new worker to the workers container
         ///@return WorkerPtr worker just added
         auto addAWorker()
@@ -88,6 +93,7 @@ namespace xander
             workers_.push_back(w);
             return w;
         }
+
         ///@brief constructor
         ///setting two workers at least, and the max worker number is the cpu core number, and create two workers
         explicit Pool()
@@ -101,10 +107,12 @@ namespace xander
             }
             startWorkersGc();
         }
+
         void setWorkerExpiryTime(int workerExpiryTime)
         {
             workerExpiryTime_.store(workerExpiryTime);
         }
+
         ///@brief constructor
         ///setting  workerMinNum_ workers at least, and the max worker number is workerMaxNum, and create workerMinNum_ workers
         explicit Pool(int workerMinNum, int workerMaxNum, int workerExpiryTime = 5000)
@@ -131,32 +139,29 @@ namespace xander
         ///@brief async deconstruct all workers and handle something before delete this object
         std::future<bool> asyncDestroyed()
         {
-            return  std::async(std::launch::async, [this]()
+            return std::async(std::launch::async, [this]()
+            {
+                timerThreadExitFlag_.store(true);
+                if (timerThread_.joinable())
                 {
+                    timerThread_.join();
+                }
+                std::lock_guard lock(workersMutex_);
+                std::vector<std::future<bool>> fs;
+                for (const auto& e : workers_)
+                {
+                    auto f = std::async([e]() { return e->shutdown(); });
+                    fs.push_back(std::move(f));
+                }
 
-                    timerThreadExitFlag_.store(true);
-                    if (timerThread_.joinable())
-                    {
-                        timerThread_.join();
-                    }
-                    std::lock_guard lock(workersMutex_);
-                    std::vector<std::future<bool>> fs;
-                    for (const auto& e : workers_)
-                    {
-                        auto f = std::async([e]() {return e->shutdown(); });
-                        fs.push_back(std::move(f));
-                    }
-
-                    for (const auto& f : fs)
-                    {
-                        f.wait();
-                    }
-                    workers_.clear();
-                    std::cout << "~Pool" << "\n";
-                    return true;
-                });
-
-
+                for (const auto& f : fs)
+                {
+                    f.wait();
+                }
+                workers_.clear();
+                std::cout << "~Pool" << "\n";
+                return true;
+            });
         }
 
         //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -166,8 +171,8 @@ namespace xander
         ///@param f Task function type
         ///@param args Task function argument types
         ///@return Task result
-        template <typename F, typename... Args, typename  Rt = std::invoke_result_t < F, Args ...>>
-        TaskResultPtr<Rt> submit(F&& f, Args &&...args)
+        template <typename F, typename... Args, typename Rt = std::invoke_result_t<F, Args...>>
+        TaskResultPtr<Rt> submit(F&& f, Args&&... args)
         {
             const auto worker = decideWorkerByIdlePriorityPolicy();
             const auto result = worker->submit(TaskBase::Normal, std::forward<F>(f), std::forward<Args>(args)...);
@@ -179,8 +184,8 @@ namespace xander
         ///@param f Task function type
         ///@param args Task function argument types
         ///@return Task result
-        template <typename F, typename... Args, typename  Rt = std::invoke_result_t < F, Args ...>>
-        TaskResultPtr<Rt> submit(const TaskBase::Priority& priority, F&& f, Args &&...args)
+        template <typename F, typename... Args, typename Rt = std::invoke_result_t<F, Args...>>
+        TaskResultPtr<Rt> submit(const TaskBase::Priority& priority, F&& f, Args&&... args)
         {
             const auto worker = decideWorkerByIdlePriorityPolicy();
             const auto result = worker->submit(priority, std::forward<F>(f), std::forward<Args>(args)...);
@@ -188,27 +193,29 @@ namespace xander
         }
 
         //------------------Override 3, submit TaskPtr------------------
-        ///@brief The pool accepts a task that you have previously created. Submit it anytime. 
+        ///@brief The pool accepts a task that you have previously created. Submit it anytime.
         ///@param f Task function type
         ///@param args Task function argument types
         ///@return Task result
-        template <typename F, typename... Args, typename  Rt = std::invoke_result_t < F, Args ...>>
+        template <typename F, typename... Args, typename Rt = std::invoke_result_t<F, Args...>>
         TaskResultPtr<Rt> submit(const TaskBase::Priority& priority, TaskPtr<F, Rt, Args...> task)
         {
             const auto worker = decideWorkerByIdlePriorityPolicy();
             return worker->submit(priority, task);
         }
+
         //------------------Override 4, submit TaskPtr without priority -----------
-        ///@brief The pool accepts a task that you have previously created. Submit it anytime. 
+        ///@brief The pool accepts a task that you have previously created. Submit it anytime.
         ///@param f Task function type
         ///@param args Task function argument types
         ///@return Task result
-        template <typename F, typename... Args, typename  Rt = std::invoke_result_t < F, Args ...>>
+        template <typename F, typename... Args, typename Rt = std::invoke_result_t<F, Args...>>
         TaskResultPtr<Rt> submit(TaskPtr<F, Rt, Args...> task)
         {
             const auto worker = decideWorkerByIdlePriorityPolicy();
             return worker->submit(task);
         }
+
         //----------------------------------override 3,submit TaskBasePtr (submit some)---------------------------------------------------------------------------------------------
         ///@brief pool accept one task,this function have no return value,you can use origin task (you just given) instance to get result.
         void submit(TaskBasePtr task)
@@ -216,17 +223,19 @@ namespace xander
             const auto worker = decideWorkerByIdlePriorityPolicy();
             return worker->submit(task);
         }
+
         /// @brief pool accept some tasks,this function have no return value,you can use origin task (you just given) instance to get result.
         ///	@param f task function type
         ///	@param args task function args type
         ///	@return task result
-        void  submitSome(std::vector<TaskBasePtr> tasks)
+        void submitSome(std::vector<TaskBasePtr> tasks)
         {
             for (auto e : tasks)
             {
                 submit(e);
             }
         }
+
         //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
     private:
@@ -235,41 +244,45 @@ namespace xander
         void startWorkersGc()
         {
             timerThread_ = std::thread([this]()
+            {
+                while (!timerThreadExitFlag_.load())
                 {
-                    while (!timerThreadExitFlag_.load())
+                    std::chrono::milliseconds dura(workerExpiryTime_.load());
+                    std::this_thread::sleep_for(dura);
+                    std::unique_lock lock(workersMutex_);
+                    std::cout << "collecting ... " << std::endl;
+                    auto itr = workers_.begin();
+                    while (itr != workers_.end())
                     {
-                        std::chrono::milliseconds dura(workerExpiryTime_.load());
-                        std::this_thread::sleep_for(dura);
-                        std::unique_lock lock(workersMutex_);
-                        printf_s("collecting ... :\n");
-                        auto itr = workers_.begin();
-                        while (itr != workers_.end()) {
-                            if (workers_.size() > workerMinNum_)
+                        if (workers_.size() > workerMinNum_)
+                        {
+                            auto isbusy = (*itr)->isBusy();
+                            if (isbusy)
                             {
-                                auto isbusy = (*itr)->isBusy();
-                                if (isbusy) {
-                                    ++itr;
-                                }
-                                else {
-                                    (*itr)->shutdown();
-                                    itr = workers_.erase(itr);
-                                    if (workers_.size() <= workerMinNum_) {
-                                        break;
-                                    }
-                                }
+                                ++itr;
                             }
                             else
                             {
-                                break;
+                                (*itr)->shutdown();
+                                itr = workers_.erase(itr);
+                                if (workers_.size() <= workerMinNum_)
+                                {
+                                    break;
+                                }
                             }
                         }
-                        lock.unlock();
-                        printf_s(dumpWorkers().data());
+                        else
+                        {
+                            break;
+                        }
                     }
-                    printf_s("garbage collection timer thread destroyed . :\n");
-                });
-
+                    lock.unlock();
+                    std::cout << dumpWorkers() << std::endl;
+                }
+                std::cout << "garbage collection timer thread destroyed . :\n";
+            });
         }
+
         ///@brief The policy that decides which worker accepts the next task is a smarter one, known as the 'Not Busy First' policy. If there are no idle workers, then the policy will select the worker who has the fewest tasks.
         WorkerPtr decideWorkerByIdlePriorityPolicy()
         {
@@ -282,7 +295,8 @@ namespace xander
                 }
             }
 
-            if (workers_.size() < workerMaxNum_.load()) {
+            if (workers_.size() < workerMaxNum_.load())
+            {
                 WorkerPtr worker = addAWorker();
                 return worker;
             }
@@ -307,7 +321,6 @@ namespace xander
             nextWorkerIndex_ = (nextWorkerIndex_ + 1) % workers_.size();
             return selectedThread;
         }
-
 
     public:
         ///@brief get num workers which is not busy.if all workers is busy,return workers which has the fewest tasks
@@ -334,11 +347,13 @@ namespace xander
             }
             return r;
         }
+
         ///@brief get a worker which is not busy,if all workers is busy,return workers which has the fewest tasks
         WorkerPtr getAnIdleWorker()
         {
             return getIdleWorkers(1).front();
         }
+
         std::string dumpWorkers()
         {
             std::stringstream ss;
@@ -362,6 +377,5 @@ namespace xander
             ss << "+-------------------+-------------------+-------------------+-------------------+\n";
             return ss.str();
         }
-
     };
 }
