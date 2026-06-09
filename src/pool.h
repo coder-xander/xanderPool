@@ -1,4 +1,5 @@
 ﻿#pragma once
+#include <algorithm>
 #include <format>
 #include <future>
 #include <iomanip>
@@ -24,6 +25,8 @@ namespace xander
         //the time of expiry worker,if the worker is not busy for workerExpiryTime_ mills,then the worker will be shutdown
         std::thread timerThread_; //the garbage collection thread
         std::atomic_bool timerThreadExitFlag_;
+        std::condition_variable timerCv_; // 用于提前唤醒 GC 线程
+        std::mutex timerMutex_; // timerCv_ 配套 mutex
 
     public:
         ///@brief the thread safe singleton
@@ -81,7 +84,7 @@ namespace xander
                 workerMinNum_ = workerNum;
             }
 
-            return instance_.get();
+            return this;
         }
 
         ///@brief add a new worker to the workers container
@@ -142,6 +145,8 @@ namespace xander
             return std::async(std::launch::async, [this]()
             {
                 timerThreadExitFlag_.store(true);
+                // 立即唤醒 GC 线程，不用等它 sleep 完
+                timerCv_.notify_one();
                 if (timerThread_.joinable())
                 {
                     timerThread_.join();
@@ -221,7 +226,7 @@ namespace xander
         void submit(TaskBasePtr task)
         {
             const auto worker = decideWorkerByIdlePriorityPolicy();
-            return worker->submit(task);
+            worker->submit(task);
         }
 
         /// @brief pool accept some tasks,this function have no return value,you can use origin task (you just given) instance to get result.
@@ -247,8 +252,14 @@ namespace xander
             {
                 while (!timerThreadExitFlag_.load())
                 {
+                    // 用 condition_variable 替代 sleep_for，析构时可立即唤醒
                     std::chrono::milliseconds dura(workerExpiryTime_.load());
-                    std::this_thread::sleep_for(dura);
+                    {
+                        std::unique_lock<std::mutex> lk(timerMutex_);
+                        timerCv_.wait_for(lk, dura, [this]() { return timerThreadExitFlag_.load(); });
+                    }
+                    if (timerThreadExitFlag_.load()) break;
+
                     std::unique_lock lock(workersMutex_);
                     std::cout << "collecting ... " << std::endl;
                     auto itr = workers_.begin();
@@ -335,11 +346,20 @@ namespace xander
                     r.push_back(worker);
                 }
             }
-            if (r.size() < num)
+            if (r.size() < static_cast<size_t>(num))
             {
-                for (auto worker : workers_)
+                // 当空闲 worker 不够时，从所有 worker 中选任务最少的补齐
+                // 按 taskCount 排序后取前 num 个
+                std::vector<WorkerPtr> all(workers_.begin(), workers_.end());
+                std::sort(all.begin(), all.end(), [](const WorkerPtr& a, const WorkerPtr& b)
                 {
-                    if (worker->taskCount() < r.front()->taskCount())
+                    return a->taskCount() < b->taskCount();
+                });
+                for (auto& worker : all)
+                {
+                    if (r.size() >= static_cast<size_t>(num)) break;
+                    // 避免重复添加已有的空闲 worker
+                    if (std::find(r.begin(), r.end(), worker) == r.end())
                     {
                         r.push_back(worker);
                     }
@@ -351,7 +371,14 @@ namespace xander
         ///@brief get a worker which is not busy,if all workers is busy,return workers which has the fewest tasks
         WorkerPtr getAnIdleWorker()
         {
-            return getIdleWorkers(1).front();
+            auto idle = getIdleWorkers(1);
+            if (idle.empty())
+            {
+                // 理论上不会发生（getIdleWorkers 至少返回一个），防御性处理
+                std::lock_guard lock(workersMutex_);
+                return workers_.front();
+            }
+            return idle.front();
         }
 
         std::string dumpWorkers()

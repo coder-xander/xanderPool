@@ -1,292 +1,260 @@
-# xanderPool Introduction
+# xanderPool
 
 [中文](README-CN.md)
 
-![GitHub last commit](https://img.shields.io/github/last-commit/coder-xander/xanderPool) 
+![GitHub last commit](https://img.shields.io/github/last-commit/coder-xander/xanderPool)
+![Language](https://img.shields.io/badge/language-C%2B%2B20-blue)
+![License](https://img.shields.io/github/license/coder-xander/xanderPool)
+![Header Only](https://img.shields.io/badge/header--only-yes-green)
 
-xanderPool is a user-friendly, high-performance, cross-platform, automatic memory-managed, thread-safe, header-only, C++ 20 thread Pool based on task priority. It aims to be a simple yet efficient thread Pool with various ways to submit tasks, offering clear and straightforward design patterns and logic. It follows modern C++ coding styles.
+A high-performance, cross-platform, header-only C++20 thread pool with task priority support. Modern C++ design, zero external dependencies — just copy and use.
 
-It can be a dynamic thread Pool or set as a static thread Pool, with the number of threads dynamically adjusted or fixed.
+## Features
 
-Built on the C++ standard library without relying on any other libraries, it's easy to integrate. You can get started quickly and efficiently utilize system thread resources by submitting task objects.
+- **Header-only** — copy `src/` into your project, no build system needed
+- **Task priority** — High / Normal / Low, always executes highest priority first
+- **Dynamic scaling** — auto-creates workers under load, reclaims idle ones
+- **Static mode** — fixed worker count when you need deterministic behavior
+- **Memory safe** — `shared_ptr` everywhere, only manage Pool lifetime
+- **Thread safe** — all `submit` / `submitSome` are concurrent-safe
+- **Callable variety** — lambdas, global functions, member functions, functors
+- **Async results** — `TaskResult` with blocking or timed `syncGetResult`
+- **Zero dependencies** — pure C++ standard library
 
-Usage: Since xanderPool is header-only, it means you can just copy the xanderPool/include directory into your project to use it.
-
-## Quickly Submit a Task and Get Results
+## Quick Start
 
 ```cpp
-// Use Pool singleton to submit an anonymous lambda task to calculate 1.2 raised to the power of 3, returning a TaskResult asynchronous object
-auto asyncResult1 = Pool::instance()->submit([](double a, double b)
-{
+#include "pool.h"
+#include <cmath>
+
+using namespace xander;
+
+// Submit a lambda, get an async result
+auto result = Pool::instance()->submit([](double a, double b) {
     return pow(a, b);
-
 }, 1.2, 3);
-// syncGetResult blocks here until the task completes
-double result = asyncResult1->syncGetResult(); // 1.7279999999999
+
+double value = result->syncGetResult(); // 1.728
 ```
 
-It's very straightforward - xanderPool uses the submit function to submit tasks and uses the asynchronous result TaskResult to obtain results. At this point, you can make normal use of xanderPool. Just keep using the provided singleton object to add various tasks as needed.
+## Table of Contents
 
-# Detailed Introduction
+- [Architecture](#architecture)
+- [API Reference](#api-reference)
+  - [Creating a Pool](#creating-a-pool)
+  - [Submitting Tasks](#submitting-tasks)
+  - [Task Priority](#task-priority)
+  - [Getting Results](#getting-results)
+  - [Batch Submission](#batch-submission)
+  - [Task Duplication](#task-duplication)
+  - [Using Workers Directly](#using-workers-directly)
+- [Build & Test](#build--test)
+- [Performance](#performance)
+- [Thread Safety](#thread-safety)
+- [Memory Safety](#memory-safety)
+- [Notes](#notes)
+- [Contact](#contact)
 
-#### Several Concepts of xanderPool
+## Architecture
 
-1. Pool: Accepts tasks and allocates them to workers, managing the workers.
-2. Task: A wrapper for callable objects.
-3. Worker: The task handler.
-4. Task Result (taskResult)
+```
+┌─────────────────────────────────────────────────┐
+│                   Pool (Manager)                │
+│  ┌──────────────────────────────────────────┐   │
+│  │  Task Dispatch Policy                    │   │
+│  │  1. Idle worker → assign                 │   │
+│  │  2. All busy + cap not reached → create  │   │
+│  │  3. All busy + cap reached → min tasks   │   │
+│  └──────────────────────────────────────────┘   │
+│                                                 │
+│  ┌─────────┐ ┌─────────┐ ┌─────────┐           │
+│  │ Worker 1│ │ Worker 2│ │ Worker N│  (auto-   │
+│  │ ┌─────┐ │ │ ┌─────┐ │ │ ┌─────┐ │  scaling) │
+│  │ │High │ │ │ │High │ │ │ │High │ │           │
+│  │ │Norm │ │ │ │Norm │ │ │ │Norm │ │           │
+│  │ │Low  │ │ │ │Low  │ │ │ │Low  │ │           │
+│  │ └─────┘ │ │ └─────┘ │ │ └─────┘ │           │
+│  └─────────┘ └─────────┘ └─────────┘           │
+│                                                 │
+│  GC Thread ── periodically reclaims idle workers│
+└─────────────────────────────────────────────────┘
 
-![1707112692969](image/README/1707112692969.png)
+submit() → TaskResult<T> → syncGetResult() / syncGetResult(ms)
+```
 
-You just need to create a Pool instance, submit tasks, and you'll get the task results. Afterward, the Pool will automatically distribute your tasks and manage the workers, executing them and retrieving results through the task result.
+## API Reference
 
-#### Submit Various Callable Objects:
-
-1. Global function
+### Creating a Pool
 
 ```cpp
-long long globalFibFunction(int n)
-{
-    if (n <= 1)
-    {
-        return n;
-    }
-    else
-    {
-        return globalFibFunction(n - 1) + globalFibFunction(n - 2);
-    }
+// Singleton (recommended for global use)
+Pool* pool = Pool::instance();
+
+// Local instance
+Pool pool;                        // dynamic, min=2, max=hardware_concurrency
+Pool pool(4, 8);                  // dynamic, min=4, max=8
+Pool pool(4, 8, 3000);            // + custom GC interval (ms)
+
+// Static mode (fixed worker count)
+pool.useStaticMode();             // workers = hardware_concurrency
+pool.useStaticMode(4);            // workers = 4
+```
+
+### Submitting Tasks
+
+```cpp
+// Lambda
+auto r1 = pool.submit([]() { return 42; });
+
+// Lambda with arguments
+auto r2 = pool.submit([](int a, int b) { return a + b; }, 3, 4);
+
+// Global function
+auto r3 = pool.submit(globalFibFunction, 12);
+
+// Member function
+ClassA obj;
+auto r4 = pool.submit(&ClassA::memberFunction, &obj, 1, 2);
+
+// Functor
+auto r5 = pool.submit(obj);  // calls obj.operator()()
+
+// With explicit priority
+auto r6 = pool.submit(TaskBase::High, []() { return 1; });
+
+// Pre-made task
+auto task = makeTask(TaskBase::Normal, []() { return 1; });
+pool.submit(task);
+```
+
+### Task Priority
+
+| Priority | Enum | Behavior |
+|----------|------|----------|
+| High | `TaskBase::High` | Executed first |
+| Normal | `TaskBase::Normal` | Default |
+| Low | `TaskBase::low` | Executed last |
+
+Each worker maintains three separate queues. The worker always picks from the highest-priority non-empty queue.
+
+### Getting Results
+
+```cpp
+auto result = pool.submit([]() { return 42; });
+
+// Blocking wait
+int value = result->syncGetResult();
+
+// Timed wait (returns std::optional)
+auto opt = result->syncGetResult(100); // 100ms timeout
+if (opt.has_value()) {
+    int v = opt.value();
 }
 ```
 
-2. Member function and functor
+### Batch Submission
 
 ```cpp
-class ClassA
-{
-public:
-    // Member function
-    std::string memberFunction(int a, double b)
-    {
-        this_thread::sleep_for(std::chrono::milliseconds(300));
-        return std::to_string(a) + std::to_string(b);
-    }
-    // Functor
-    std::string operator()()
-    {
-        printf_s("fake function called \n");
-        return "fake func";
-    }
-};
-ClassA aobj;
+auto t1 = makeTask([]() { return 1; });
+auto t2 = makeTask([]() { return "hello"; });
+
+pool.submitSome({t1, t2});
+
+// Get results from the task objects themselves
+int r1 = t1->getTaskResult()->syncGetResult();
 ```
 
-3. Lambda function
+`submitSome` has no return value because tasks may have different types. Use the task object to retrieve its result.
+
+### Task Duplication
+
+A task can only be submitted once. Use `copy()` to re-submit:
 
 ```cpp
-auto lambdaFunction = []()
-{
-    printf_s("hello, xander \n");
-};
+pool.submit(task1);
+pool.submit(task1->copy());                           // same task again
+pool.submit(task2->copy()->setPriority(TaskBase::High)); // copy + boost priority
 ```
 
-##### Submit Anonymously Using Pool
+### Using Workers Directly
 
-```cpp
-Pool pool1;
-pool1.submit(TaskBase::low, []() {});
-pool1.submit(TaskBase::Normal, globalFibFunction, 12);
-pool1.submit(TaskBase::High, &ClassA::memberFunction, &aobj, 1, 2);
-pool1.submit(aobj);
-```
-
-##### Non-anonymous Submission (Construct with makeTask First)
-
-```cpp
-auto task1 = makeTask(TaskBase::Normal, []() {});
-auto task2 = makeTask(TaskBase::High, globalFibFunction, 12);
-auto task3 = makeTask(TaskBase::Low, &ClassA::memberFunction, ClassA(), 1, 2);
-auto task4 = makeTask(aobj);
-pool1.submit(task1);
-pool1.submit(task2);
-pool1.submit(task3);
-pool1.submit(task4);
-```
-
-xanderPool can submit almost all types of callable objects, allowing tasks to be created and submitted anywhere. Please use the global function makeTask to create any type of task.
-
-##### Batch Submission
-
-The Pool's submitSome function accepts a set of tasks.
-
-```cpp
-auto task11 = makeTask([]()
-{
-    std::cout << "task11" << std::endl;
-    return 1;
-});
-
-auto task12 = makeTask([]()
-{
-    std::cout << "task12" << std::endl;
-    return "ssss";
-});
-
-pool1.submitSome({ task11, task12 });
-int task11Result = task11->getTaskResult()->syncGetResult();
-```
-
-There is no return value for this function. If you want to get results, you can do so using the Task itself to find the results (through the getTaskResult function). The reason for this design is that task11 and task12 may have different return values, so should the submitSome function return a tuple? Considering the hassle of using std::get to retrieve values from a tuple, it's more direct to use the task to get its own result object.
-
-##### Task Duplication
-
-The same Task can only be submitted to a Worker once. If you want to execute the same task multiple times, the task provides a copy function for convenient duplication.
-
-```cpp
-pool1.submitSome({ task11, task12 });
-pool1.submitSome({ task11->copy(), task12->copy()->setPriority(TaskBase::High)});
-```
-
-The task11 and task12 were duplicated, and the priority of task12 was raised to High for re-execution.
-
-#### Getting Task Results
-
-Except for batch addition of tasks where the task itself needs to obtain results (see Batch Submission), all other submit functions return a TaskResultPtr, which wraps the asynchronous result of the return value. An example is demonstrated next.
-
-```cpp
-std::vector<TaskResultPtr<TaskBase::Priority>> asyncResult; // Asynchronous results
-for (int i = 0; i < 1000; ++i)
-{
-    auto r = pool1.submit([this]()
-    {
-        return randomPriority();
-    });
-    asyncResult.push_back(r);
-}
-std::vector<TaskBase::Priority> results; // Results
-for (auto r : asyncResult)
-{
-    auto res = r->syncGetResult();
-    results.push_back(res);
-}
-```
-
-A thousand tasks were submitted to get a thousand random priorities. Async results are stored in an asynchronous container, then syncGetResult is used to get the results and put them in a container. The syncGetResult function can take a time argument in ms, like r->syncGetResult(100); this means it will block and wait for the result, with a timeout of 100ms. If not specified, it will wait indefinitely until the result is obtained.
-
-#### Task Priority
-
-xanderPool has a simple task priority system.
-
-Priority levels:
-
-1. High priority: TaskBase::High
-2. Normal priority, which is also the default: TaskBase::Normal
-3. Low priority: TaskBase::Low
-
-All of Pool's submit and the global makeTask function's first parameter can be the priority level. If not specified, the default is normal priority.
-
-Logic: All workers managed by the Pool have three queues for three different priority levels. The threads owned by the worker always check from high to low priority, always executing the highest priority task in the queue first.
-
-#### Automatically adjust the number of workers as a dynamic thread Pool
-
-xanderPool can serve as a dynamic thread Pool. Can dynamically create and recycle resources.
-
-##### Creation
-
-When a Pool is created, you can specify the minimum and maximum number of workers in the constructor. When the Pool is created, it will create the minimum number of workers. When the Pool's submit function is called, it will dynamically increase the number of workers, but not exceed the maximum limit. If not specified, 2 workers will be created initially, and during the subsequent dynamic increase, no more than the number of CPU cores will be created.
-
-##### Recycling
-
-A worker owns a thread used to execute tasks assigned to it. When there are few tasks, idle workers with threads can consume resources. xanderPool implements a simple resource reclaimer that scans workers at intervals to recycle idle workers.
-
-Logic: When the Pool is created, a resource reclamation thread is started, which monitors workers at set intervals. This time is by default 5 seconds but can be set with the Pool's member function setWorkerExpiryTime.
-
-##### Task Allocation Strategy
-
-When the Pool's submit function receives a task, it will decide which worker to assign the task to.
-
-Logic: If there are idle workers at the time of decision-making, the task is given to an idle worker. If all workers are busy and the number of workers has not reached the maximum; a worker is created, and the task is assigned to it. If the maximum number of workers is reached, the task is assigned to the worker with the fewest tasks.
-
-This strategy, combined with resource reclamation, achieves automatic adjustment of workers.
-
-#### As a static thread Pool - fixed number of workers
-
-The minimum and maximum number of workers can be passed in through the constructor of Pool, creating a static thread Pool with a fixed number of workers.
-
-The Pool also provides the useStaticMode function, which can be called after the Pool is created to make the Pool a static thread Pool.
-
-#### Performance
-
-xanderPool has very high performance. Use the timeTest function provided by tool.h to test the time it takes to submit 100,000 empty tasks in Release:
-
-CPU: 10th Gen i5
-
-```cpp
-timeTest("Finished adding", [&pool1]()
-{
-    for (int i = 0; i < 100000; i++)
-    {
-        pool1.submit([](){});
-    }
-});
-```
-
-Console output:
-
-![1707104137488](image/README/1707104137488.png)
-
-It took 135ms. Many "add worker" prints indicate that the Pool is dynamically increasing the number of workers to cope with a large number of tasks.
-
-By the way, if you want to see the workers managed by the Pool, you can use the Pool's dumpWorkers function. As shown in the chart above, it shows the current workers and the unfinished tasks they have. You can see that by the time the tasks are added, the workers have almost finished these tasks, indicating the high task consumption and production coherence of xanderPool.
-
-#### Memory Safety
-
-##### Smart Pointers
-
-At the core of xanderPool: Task, Pool, TaskResult, Worker in actual code usually manifest as TaskPtr, PoolPtr, TaskResultPtr..., these are aliases for std::shared_ptr. xanderPool makes extensive use of smart pointers to ensure memory safety; you only need to focus on the lifecycle of the Pool.
-
-##### Asynchronous Destruction of Pool
-
-If the Pool is destructed while there are still unfinished tasks, it will cause all workers to abandon the incomplete tasks but will continue to complete tasks that are already in execution before the destruction occurs. So there might be blocking, which is normal.
-
-```cpp
-~Pool()
-{
-    const auto f = asyncDestroyed();
-    f.wait();
-}
-```
-
-As in the wait point above.
-
-Since there is an asyncDestroyed function, if you want to destruct a Pool with ongoing tasks without blocking, you can manually call the Pool's asyncDestroyed function.
-
-#### Using the Worker Independently
-
-The worker is a thread owner, which means you can directly create a Worker and submit tasks to it directly, bypassing the Pool, like this:
+Bypass the pool for single-threaded task queues:
 
 ```cpp
 WorkerPtr worker = Worker::makeShared();
-auto result3 = worker->submit([]()
-{
-    printf_s("hello, I am a worker\n");
+auto result = worker->submit([]() {
     return 1 + 2;
 });
-result3->syncGetResult(200);
+result->syncGetResult(200);
 ```
 
-You can keep this worker safely, and now you have a worker dedicated to working for you.
+## Build & Test
 
-So why not submit directly to the Pool? As previously mentioned, the Pool will have a task distribution strategy, and you won't know which worker your task has been assigned to. If your requirement is for many tasks to be executed in a single thread, you should create a worker and submit these tasks to it.
+### Header-Only Usage
 
-Thus, with xanderPool, whether it is single-threaded creation and use or thread Pool usage, the API is uniform.
+Copy the `src/` directory into your project:
 
-#### Thread Safety
+```bash
+cp -r src/ /your/project/include/xanderPool/
+```
 
-All submit functions and submitSome functions are thread-safe.
+```cpp
+#include "xanderPool/pool.h"
+```
 
-#### Attention Points
+Requires C++20 (`-std=c++20`).
 
-1. The same Task can only be submitted once. If duplication is needed, use its copy member function.
-2. A TaskResult can only get a result once; attempting to do so again will result in an error.
+### Building Tests
 
-#### Email:xhr1028@foxmail.com
+```bash
+mkdir build && cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release
+cmake --build . -j$(nproc)
+ctest --timeout 30
+```
+
+Tests use [Google Test](https://github.com/google/googletest) (auto-fetched by CMake).
+
+### Test Coverage
+
+| Test Suite | Description |
+|-----------|-------------|
+| `task_submit_test` | Submit global functions, member functions, lambdas, functors |
+| `task_find_test` | Find tasks by name across workers |
+| `task_performance_test` | 1000 tasks, verifies all complete |
+| `dev_test` | 1000 Pool create/destroy cycles |
+| `comprehensive_test` | Priority ordering, concurrent submit, timeout, batch submit, dynamic scaling |
+
+## Performance
+
+100,000 empty tasks submitted on a 10th-gen i5 (Release build):
+
+```
+~135ms to enqueue all tasks
+Workers auto-scale to handle the burst
+```
+
+The dynamic scaling + GC reclamation keeps resource usage efficient under varying load.
+
+## Thread Safety
+
+- All `submit()` and `submitSome()` variants are thread-safe
+- Worker management (creation, GC reclamation) is internally synchronized
+- `dumpWorkers()` is safe to call from any thread
+
+## Memory Safety
+
+- Core objects (`Pool`, `Worker`, `Task`, `TaskResult`) are managed via `shared_ptr`
+- You only need to manage the `Pool` lifetime
+- Pool destructor completes all in-flight tasks before shutdown
+- `asyncDestroyed()` for non-blocking shutdown
+
+## Notes
+
+1. A `Task` can only be submitted once — use `copy()` for re-submission
+2. A `TaskResult` can only be read once — calling `syncGetResult` twice is undefined
+3. Pool destructor blocks until in-flight tasks complete
+
+## Contact
+
+Email: xhr1028@foxmail.com

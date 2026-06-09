@@ -51,4 +51,9 @@ add_executable(dev_test dev_test.cc   pool_test.cc)
 target_link_libraries(dev_test PRIVATE xander_pool  gtest gtest_main)
 
 ## 注册测试
-add_test(NAME dev_test COMMAND task_performance_test)
+add_test(NAME dev_test COMMAND dev_test)
+
+# 综合测试（bug 覆盖 + 边界场景）
+add_executable(comprehensive_test comprehensive_test.cc pool_test.cc)
+target_link_libraries(comprehensive_test PRIVATE xander_pool gtest gtest_main)
+add_test(NAME comprehensive_test COMMAND comprehensive_test)

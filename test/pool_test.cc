@@ -31,6 +31,7 @@ class PoolTest : public ::testing::Test
 protected:
     void SetUp() override
     {
+        pool.setWorkerExpiryTime(100); // 缩短 GC 周期，加速测试
     }
 
     //    void TearDown() override {
