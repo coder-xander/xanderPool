@@ -6,41 +6,47 @@
 #include <random>
 #include <sstream>
 #include <thread>
-#include "queue.h"
+#include <vector>
+#include "work_stealing.h"
 #include "taskResult.h"
 #include "task.h"
 
 namespace xander
 {
-    /// @brief 任务执行线程。使用 condition_variable + predicate 驱动，
-    ///        空闲时零 CPU 消耗，任务到达时立即唤醒。
+    class Pool; // 前向声明
+
+    /// @brief 工作线程。拥有本地 WorkStealingDeque，
+    ///        空闲时从其他 worker 窃取任务。
     class Worker
     {
     public:
         enum class State { Idle, Busy, Stopped };
 
     private:
-        XDeque<TaskBasePtr> highPriorityTasks_;
-        XDeque<TaskBasePtr> normalTasks_;
-        XDeque<TaskBasePtr> lowPriorityTasks_;
+        // 本地任务队列（work-stealing deque）
+        WorkStealingDeque<TaskBasePtr> localDeque_;
 
+        // 线程
         std::thread thread_;
         std::atomic<State> state_{State::Idle};
         std::atomic_bool exitFlag_{false};
 
-        // 用 CV + mutex 实现零 CPU 等待，predicate 避免丢失通知
+        // CV：本地队列为空时等待，有新任务或退出时唤醒
         std::mutex mtx_;
         std::condition_variable cv_;
+
+        // 指向 Pool（用于窃取其他 worker 的任务）
+        Pool* pool_{nullptr};
 
         std::atomic<int64_t> idleSinceMs_{0};
 
     public:
-        static std::shared_ptr<Worker> makeShared()
+        static std::shared_ptr<Worker> makeShared(Pool* pool = nullptr)
         {
-            return std::make_shared<Worker>();
+            return std::make_shared<Worker>(pool);
         }
 
-        Worker()
+        explicit Worker(Pool* pool = nullptr) : pool_(pool)
         {
             idleSinceMs_.store(nowMs());
             thread_ = std::thread([this]() { run(); });
@@ -54,7 +60,7 @@ namespace xander
         Worker(const Worker&) = delete;
         Worker& operator=(const Worker&) = delete;
 
-        // ========== 任务提交 ==========
+        // ========== 任务提交（入队到本地 deque）==========
 
         template <typename F, typename... Args, typename R = std::invoke_result_t<F, Args...>>
         TaskResultPtr<R> submit(const TaskBase::Priority& priority, F&& function, Args&&... args)
@@ -84,9 +90,27 @@ namespace xander
             enqueue(task);
         }
 
+        /// @brief 入队并唤醒 worker
+        void enqueue(TaskBasePtr task)
+        {
+            localDeque_.push(std::move(task));
+            cv_.notify_one();
+        }
+
+        /// @brief 尝试从本地 deque 取任务
+        std::optional<TaskBasePtr> tryPopLocal()
+        {
+            return localDeque_.pop();
+        }
+
+        /// @brief 尝试从本 worker 窃取任务（供其他 worker 调用）
+        std::optional<TaskBasePtr> trySteal()
+        {
+            return localDeque_.steal();
+        }
+
         // ========== 生命周期 ==========
 
-        /// @brief 优雅关闭：等队列清空后停止
         void shutdown()
         {
             {
@@ -106,15 +130,7 @@ namespace xander
         bool isIdle() const { return state_.load() == State::Idle; }
         bool isStopped() const { return state_.load() == State::Stopped; }
         int64_t idleSince() const { return idleSinceMs_.load(); }
-
-        size_t taskCount()
-        {
-            std::lock_guard<std::mutex> lk(mtx_);
-            return highPriorityTasks_.size() + normalTasks_.size() + lowPriorityTasks_.size();
-        }
-        size_t highPriorityTaskCount() { std::lock_guard<std::mutex> lk(mtx_); return highPriorityTasks_.size(); }
-        size_t normalPriorityTaskCount() { std::lock_guard<std::mutex> lk(mtx_); return normalTasks_.size(); }
-        size_t lowPriorityTaskCount() { std::lock_guard<std::mutex> lk(mtx_); return lowPriorityTasks_.size(); }
+        size_t taskCount() { return localDeque_.size(); }
 
         std::string idString() const
         {
@@ -123,82 +139,47 @@ namespace xander
             return os.str();
         }
 
-        std::vector<TaskBasePtr> findTasks(const std::string& name)
-        {
-            std::vector<TaskBasePtr> result;
-            std::lock_guard<std::mutex> lk(mtx_);
-            findInQueue(highPriorityTasks_, name, result);
-            findInQueue(normalTasks_, name, result);
-            findInQueue(lowPriorityTasks_, name, result);
-            return result;
-        }
+        void setPool(Pool* pool) { pool_ = pool; }
 
     private:
-        void enqueue(TaskBasePtr task)
-        {
-            {
-                std::lock_guard<std::mutex> lk(mtx_);
-                switch (task->priority())
-                {
-                    case TaskBase::High:   highPriorityTasks_.enqueue(task); break;
-                    case TaskBase::Normal: normalTasks_.enqueue(task); break;
-                    case TaskBase::low:    lowPriorityTasks_.enqueue(task); break;
-                }
-            }
-            cv_.notify_one();
-        }
-
-        void findInQueue(XDeque<TaskBasePtr>& queue, const std::string& name, std::vector<TaskBasePtr>& result)
-        {
-            std::unique_lock<std::mutex> lock(queue.mutex());
-            for (auto& task : queue.deque())
-            {
-                if (task->name() == name)
-                    result.push_back(task);
-            }
-        }
-
-        std::optional<TaskBasePtr> takeHighestPriorityTask()
-        {
-            if (!highPriorityTasks_.empty())
-                return highPriorityTasks_.tryPop();
-            if (!normalTasks_.empty())
-                return normalTasks_.tryPop();
-            if (!lowPriorityTasks_.empty())
-                return lowPriorityTasks_.tryPop();
-            return std::nullopt;
-        }
+        /// @brief 尝试从其他 worker 窃取任务（实现在 pool.h 中）
+        std::optional<TaskBasePtr> tryStealFromOthers();
 
         /// @brief worker 线程主循环
         void run()
         {
             while (true)
             {
-                TaskBasePtr task;
-                // 在锁内等待任务到达或退出信号
+                std::optional<TaskBasePtr> task;
+
+                // 1. 先从本地 deque 取（LIFO：最近的优先，缓存友好）
+                task = localDeque_.pop();
+
+                // 2. 本地空，尝试从其他 worker 窃取（先检查退出标志避免死锁）
+                if (!task.has_value() && !exitFlag_.load())
                 {
-                    std::unique_lock<std::mutex> lk(mtx_);
-                    cv_.wait(lk, [this]() {
-                        return exitFlag_.load()
-                            || !highPriorityTasks_.empty()
-                            || !normalTasks_.empty()
-                            || !lowPriorityTasks_.empty();
-                    });
-
-                    if (exitFlag_.load())
-                        break;
-
-                    auto opt = takeHighestPriorityTask();
-                    if (opt.has_value())
-                        task = opt.value();
+                    task = tryStealFromOthers();
                 }
 
-                if (task)
+                // 3. 有任务就执行
+                if (task.has_value())
                 {
                     state_.store(State::Busy);
-                    task->run();
+                    task.value()->run();
                     state_.store(State::Idle);
                     idleSinceMs_.store(nowMs());
+                }
+                else
+                {
+                    // 4. 没有任务可做，等待唤醒
+                    state_.store(State::Idle);
+                    idleSinceMs_.store(nowMs());
+                    std::unique_lock<std::mutex> lk(mtx_);
+                    cv_.wait(lk, [this]() {
+                        return exitFlag_.load() || !localDeque_.empty();
+                    });
+                    if (exitFlag_.load())
+                        break;
                 }
             }
             state_.store(State::Stopped);

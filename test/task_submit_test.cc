@@ -9,32 +9,24 @@ long long globalFibFunction(int n)
 
 TEST_F(PoolTest, SubmitGlobalFunction)
 {
-    auto asyncResult = pool.submit(globalFibFunction, 2);
-    long long res = asyncResult->syncGetResult();
-    EXPECT_EQ(res, globalFibFunction(2));
+    auto r = pool.submit(globalFibFunction, 2);
+    EXPECT_EQ(r->syncGetResult(5000), globalFibFunction(2));
 }
 
 TEST_F(PoolTest, SubmitMemberFunction)
 {
-    auto asyncResult = pool.submit(&ClassA::memberFunction, &aobj, 1, 2);
-    auto res = asyncResult->syncGetResult();
-    EXPECT_EQ(res, aobj.memberFunction(1, 2));
+    auto r = pool.submit(&ClassA::memberFunction, &aobj, 1, 2);
+    EXPECT_EQ(r->syncGetResult(5000), aobj.memberFunction(1, 2));
 }
 
 TEST_F(PoolTest, SubmitLambdaFunction)
 {
-    auto lambdaFunction = []()
-    {
-        return true;
-    };
-    auto asyncResult = pool.submit(lambdaFunction);
-    auto res = asyncResult->syncGetResult();
-    EXPECT_EQ(res, true);
+    auto r = pool.submit([]() { return true; });
+    EXPECT_EQ(r->syncGetResult(5000), true);
 }
 
 TEST_F(PoolTest, SubmitFunctor)
 {
-    auto asyncResult = pool.submit(aobj);
-    auto res = asyncResult->syncGetResult();
-    EXPECT_EQ(res, "ok");
+    auto r = pool.submit(aobj);
+    EXPECT_EQ(r->syncGetResult(5000), "ok");
 }

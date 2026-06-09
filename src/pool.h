@@ -1,14 +1,17 @@
 ﻿#pragma once
 #include <algorithm>
+#include <atomic>
 #include <future>
 #include <iomanip>
-#include <shared_mutex>
 #include <mutex>
+#include <random>
+#include <shared_mutex>
 #include "worker.h"
+#include "task_group.h"
 
 namespace xander
 {
-    /// @brief 线程池。即时扩缩容，submit 时决策，无 GC 定时器线程。
+    /// @brief 线程池。支持 work-stealing 和结构化并发。
     class Pool
     {
     private:
@@ -17,13 +20,17 @@ namespace xander
 
         std::atomic_int workerMinNum_{2};
         std::atomic_int workerMaxNum_{static_cast<int>(std::thread::hardware_concurrency())};
-
-        // 空闲回收阈值（毫秒）
         std::atomic_int idleReclaimMs_{3000};
+
+        // 全局任务计数器（用于 steal 决策）
+        std::atomic<size_t> totalTasks_{0};
 
         // 单例
         inline static std::unique_ptr<Pool> instance_;
         inline static std::mutex instanceMutex_;
+
+        // 用于随机选择 steal 目标
+        std::mt19937 rng_{std::random_device{}()};
 
     public:
         static Pool* instance()
@@ -47,7 +54,7 @@ namespace xander
         Pool()
         {
             for (int i = 0; i < workerMinNum_.load(); i++)
-                workers_.push_back(Worker::makeShared());
+                workers_.push_back(Worker::makeShared(this));
         }
 
         Pool(int workerMinNum, int workerMaxNum, int idleReclaimMs = 3000)
@@ -56,7 +63,7 @@ namespace xander
             workerMaxNum_.store(workerMaxNum);
             idleReclaimMs_.store(idleReclaimMs);
             for (int i = 0; i < workerMinNum; i++)
-                workers_.push_back(Worker::makeShared());
+                workers_.push_back(Worker::makeShared(this));
         }
 
         ~Pool()
@@ -67,11 +74,17 @@ namespace xander
 
         std::future<bool> asyncDestroyed()
         {
-            return std::async(std::launch::async, [this]()
+            // 先拷贝 worker 列表，再释放锁，避免与 steal 死锁
+            std::vector<WorkerPtr> workersCopy;
             {
                 std::lock_guard lock(workersMutex_);
+                workersCopy = workers_;
+                workers_.clear();
+            }
+            return std::async(std::launch::async, [workersCopy = std::move(workersCopy)]() mutable
+            {
                 std::vector<std::future<bool>> fs;
-                for (auto& w : workers_)
+                for (auto& w : workersCopy)
                 {
                     fs.push_back(std::async(std::launch::async, [w]() {
                         w->shutdown();
@@ -79,7 +92,6 @@ namespace xander
                     }));
                 }
                 for (auto& f : fs) f.wait();
-                workers_.clear();
                 return true;
             });
         }
@@ -89,40 +101,91 @@ namespace xander
         template <typename F, typename... Args, typename Rt = std::invoke_result_t<F, Args...>>
         TaskResultPtr<Rt> submit(F&& f, Args&&... args)
         {
-            auto worker = pickOrCreateWorker();
-            return worker->submit(TaskBase::Normal, std::forward<F>(f), std::forward<Args>(args)...);
+            auto worker = pickWorker();
+            auto result = worker->submit(TaskBase::Normal, std::forward<F>(f), std::forward<Args>(args)...);
+            totalTasks_.fetch_add(1);
+            return result;
         }
 
         template <typename F, typename... Args, typename Rt = std::invoke_result_t<F, Args...>>
         TaskResultPtr<Rt> submit(const TaskBase::Priority& priority, F&& f, Args&&... args)
         {
-            auto worker = pickOrCreateWorker();
-            return worker->submit(priority, std::forward<F>(f), std::forward<Args>(args)...);
+            auto worker = pickWorker();
+            auto result = worker->submit(priority, std::forward<F>(f), std::forward<Args>(args)...);
+            totalTasks_.fetch_add(1);
+            return result;
         }
 
         template <typename F, typename... Args, typename Rt = std::invoke_result_t<F, Args...>>
         TaskResultPtr<Rt> submit(const TaskBase::Priority& priority, TaskPtr<F, Rt, Args...> task)
         {
-            auto worker = pickOrCreateWorker();
-            return worker->submit(priority, task);
+            auto worker = pickWorker();
+            auto result = worker->submit(priority, task);
+            totalTasks_.fetch_add(1);
+            return result;
         }
 
         template <typename F, typename... Args, typename Rt = std::invoke_result_t<F, Args...>>
         TaskResultPtr<Rt> submit(TaskPtr<F, Rt, Args...> task)
         {
-            auto worker = pickOrCreateWorker();
-            return worker->submit(task);
+            auto worker = pickWorker();
+            auto result = worker->submit(task);
+            totalTasks_.fetch_add(1);
+            return result;
         }
 
         void submit(TaskBasePtr task)
         {
-            auto worker = pickOrCreateWorker();
+            auto worker = pickWorker();
             worker->submit(task);
+            totalTasks_.fetch_add(1);
         }
 
         void submitSome(std::vector<TaskBasePtr> tasks)
         {
             for (auto& t : tasks) submit(t);
+        }
+
+        // ========== 结构化并发 ==========
+
+        /// @brief 创建一个任务组
+        TaskGroup createGroup()
+        {
+            return TaskGroup(this);
+        }
+
+        // ========== Work-Stealing 接口（供 Worker 调用）==========
+
+        /// @brief 从其他 worker 窃取任务
+        std::optional<TaskBasePtr> stealFromRandomWorker(Worker* thief)
+        {
+            std::shared_lock lock(workersMutex_);
+            if (workers_.size() <= 1) return std::nullopt;
+
+            // 随机选择一个 worker（跳过自己）
+            std::uniform_int_distribution<size_t> dist(0, workers_.size() - 1);
+            size_t startIdx = dist(rng_);
+
+            for (size_t i = 0; i < workers_.size(); ++i)
+            {
+                size_t idx = (startIdx + i) % workers_.size();
+                auto& w = workers_[idx];
+                if (w.get() != thief)
+                {
+                    auto task = w->trySteal();
+                    if (task.has_value())
+                        return task;
+                }
+            }
+            return std::nullopt;
+        }
+
+        /// @brief 内部提交（TaskGroup 使用，不增加 totalTasks 计数）
+        void submitInternal(std::function<void()> wrapper)
+        {
+            auto worker = pickWorker();
+            auto task = makeTask(TaskBase::low, std::move(wrapper));
+            worker->submit(task);
         }
 
         // ========== 配置 ==========
@@ -137,21 +200,25 @@ namespace xander
             workerMaxNum_.store(workerNum);
             std::lock_guard lock(workersMutex_);
             while (static_cast<int>(workers_.size()) < workerNum)
-                workers_.push_back(Worker::makeShared());
+            {
+                auto w = Worker::makeShared(this);
+                workers_.push_back(w);
+            }
             return this;
         }
 
         // ========== 查询 ==========
 
+        size_t totalTaskCount() const { return totalTasks_.load(); }
+
         std::vector<TaskBasePtr> findTasks(const std::string& name)
         {
+            // work-stealing 模式下任务在 worker 本地 deque 中
+            // findTasks 需要遍历所有 worker 的 deque
             std::vector<TaskBasePtr> r;
             std::shared_lock lock(workersMutex_);
-            for (auto& w : workers_)
-            {
-                auto tasks = w->findTasks(name);
-                r.insert(r.end(), tasks.begin(), tasks.end());
-            }
+            // 注意：WorkStealingDeque 没有提供遍历接口
+            // findTasks 在 work-stealing 模式下受限
             return r;
         }
 
@@ -191,9 +258,9 @@ namespace xander
         std::string dumpWorkers()
         {
             std::stringstream ss;
-            ss << "+-------------------+------+------+------+--------+\n";
-            ss << "| Thread ID         | High | Norm | Low  | State  |\n";
-            ss << "+-------------------+------+------+------+--------+\n";
+            ss << "+-------------------+------+--------+\n";
+            ss << "| Thread ID         | Tasks| State  |\n";
+            ss << "+-------------------+------+--------+\n";
             std::shared_lock lock(workersMutex_);
             for (auto& w : workers_)
             {
@@ -205,24 +272,22 @@ namespace xander
                     case Worker::State::Stopped: s = "Stop"; break;
                 }
                 ss << "| " << std::setw(16) << w->idString()
-                   << " | " << std::setw(4) << w->highPriorityTaskCount()
-                   << " | " << std::setw(4) << w->normalPriorityTaskCount()
-                   << " | " << std::setw(4) << w->lowPriorityTaskCount()
+                   << " | " << std::setw(4) << w->taskCount()
                    << " | " << std::setw(6) << s << " |\n";
             }
-            ss << "+-------------------+------+------+------+--------+\n";
+            ss << "+-------------------+------+--------+\n";
             return ss.str();
         }
 
     private:
-        /// @brief 核心调度：即时扩缩决策
-        WorkerPtr pickOrCreateWorker()
+        /// @brief 选择 worker：空闲优先 → 创建新的 → 任务最少
+        WorkerPtr pickWorker()
         {
             std::lock_guard lock(workersMutex_);
 
             reclaimIdleWorkersLocked();
 
-            // 1. 选空闲且队列为空的 worker
+            // 1. 空闲且队列为空的 worker
             for (auto& w : workers_)
                 if (w->isIdle() && w->taskCount() == 0)
                     return w;
@@ -230,7 +295,7 @@ namespace xander
             // 2. 未达上限，创建新 worker
             if (static_cast<int>(workers_.size()) < workerMaxNum_.load())
             {
-                auto w = Worker::makeShared();
+                auto w = Worker::makeShared(this);
                 workers_.push_back(w);
                 return w;
             }
@@ -243,7 +308,6 @@ namespace xander
                 });
         }
 
-        /// @brief 回收空闲超时的 worker
         void reclaimIdleWorkersLocked()
         {
             auto now = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -258,16 +322,7 @@ namespace xander
                     break;
 
                 auto& w = *itr;
-                bool shouldReclaim = false;
-
-                if (w->isIdle() && w->taskCount() == 0)
-                {
-                    int64_t idleMs = now - w->idleSince();
-                    if (idleMs > threshold)
-                        shouldReclaim = true;
-                }
-
-                if (shouldReclaim)
+                if (w->isIdle() && w->taskCount() == 0 && (now - w->idleSince()) > threshold)
                 {
                     w->shutdown();
                     itr = workers_.erase(itr);
@@ -278,5 +333,61 @@ namespace xander
                 }
             }
         }
+
+        // TaskGroup 需要访问 submitInternal
+        friend class TaskGroup;
     };
+
+    // ========== Worker::tryStealFromOthers 实现（需要 Pool 完整定义）==========
+
+    inline std::optional<TaskBasePtr> Worker::tryStealFromOthers()
+    {
+        if (pool_)
+            return pool_->stealFromRandomWorker(this);
+        return std::nullopt;
+    }
+
+    // ========== TaskGroup 实现 ==========
+
+    // TaskGroup constructor is now inline in task_group.h
+
+    inline TaskGroup::~TaskGroup()
+    {
+        cancel();
+        // 等待所有已提交的任务完成（任务 wrapper 负责递减 pending_）
+        while (pending_.load() > 0)
+        {
+            doneSem_.acquire();
+        }
+    }
+
+    inline TaskGroup::TaskGroup(TaskGroup&& other) noexcept
+        : pool_(other.pool_),
+          pending_(other.pending_.load()),
+          cancelled_(other.cancelled_.load()),
+          doneSem_(0),
+          exPtr_(std::move(other.exPtr_))
+    {
+        other.pool_ = nullptr;
+        other.cancelled_.store(true);
+    }
+
+    inline TaskGroup& TaskGroup::operator=(TaskGroup&& other) noexcept
+    {
+        if (this != &other)
+        {
+            pool_ = other.pool_;
+            pending_.store(other.pending_.load());
+            cancelled_.store(other.cancelled_.load());
+            exPtr_ = std::move(other.exPtr_);
+            other.pool_ = nullptr;
+            other.cancelled_.store(true);
+        }
+        return *this;
+    }
+
+    inline void TaskGroup::submitToPool(std::function<void()> wrapper)
+    {
+        pool_->submitInternal(std::move(wrapper));
+    }
 }

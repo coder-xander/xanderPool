@@ -6,13 +6,7 @@ TEST_F(PoolTest, PerformanceSubmit1000)
 {
     std::vector<TaskResultPtr<TaskBase::Priority>> asyncResult;
     for (int i = 0; i < 1000; ++i)
-    {
-        auto r = pool.submit([]() {
-            return randomPriority();
-        });
-        asyncResult.push_back(r);
-    }
-
+        asyncResult.push_back(pool.submit([]() { return randomPriority(); }));
     int completed = 0;
     for (auto& r : asyncResult)
     {
