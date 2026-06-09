@@ -1,245 +1,216 @@
 ﻿#pragma once
 #include <chrono>
+#include <condition_variable>
+#include <mutex>
+#include <optional>
 #include <random>
 #include <sstream>
+#include <thread>
 #include "queue.h"
 #include "taskResult.h"
 #include "task.h"
-#include <thread>
 
 namespace xander
 {
-
+    /// @brief 任务执行线程。使用 condition_variable + predicate 驱动，
+    ///        空闲时零 CPU 消耗，任务到达时立即唤醒。
     class Worker
     {
-
-    private:
-        //task queue
-        XDeque<TaskBasePtr> normalTasks_;
-        XDeque<TaskBasePtr> highPriorityTasks_;
-        XDeque<TaskBasePtr> lowPriorityTasks_;
-        //thread
-        std::thread thread_;
-        std::mutex threadMutex_;
-        std::atomic_bool exitflag_;
-        std::atomic_bool isBusy_;
-
-    private:
-        /// @brief  if all task deque is empty
-        bool allTaskDequeEmpty()
-        {
-            return normalTasks_.empty() && highPriorityTasks_.empty() && lowPriorityTasks_.empty();
-        }
     public:
-        ///@brief create a new worker decorated by shared_ptr
+        enum class State { Idle, Busy, Stopped };
+
+    private:
+        XDeque<TaskBasePtr> highPriorityTasks_;
+        XDeque<TaskBasePtr> normalTasks_;
+        XDeque<TaskBasePtr> lowPriorityTasks_;
+
+        std::thread thread_;
+        std::atomic<State> state_{State::Idle};
+        std::atomic_bool exitFlag_{false};
+
+        // 用 CV + mutex 实现零 CPU 等待，predicate 避免丢失通知
+        std::mutex mtx_;
+        std::condition_variable cv_;
+
+        std::atomic<int64_t> idleSinceMs_{0};
+
+    public:
         static std::shared_ptr<Worker> makeShared()
         {
             return std::make_shared<Worker>();
         }
-        ///@brief destructor,ps:all workers will destroyed when thread pool destruct or destroy by automatic garbage collector.
-        ~Worker()
-        {
-        }
-        ///@brief constructor，create a thread to run task,isBusy flag will be dynamic set,so we know worker`s state
+
         Worker()
         {
-            exitflag_.store(false);
-            isBusy_.store(false);
-            std::lock_guard threadLock(threadMutex_);
-            thread_ = std::thread([this]()
-                {
-                    while (true)
-                    {
-                        // 自旋等待：队列空且未退出时 yield，避免 condition_variable 竞态
-                        while (allTaskDequeEmpty() && !exitflag_.load())
-                        {
-                            isBusy_.store(false);
-                            std::this_thread::yield();
-                        }
-
-                        if (exitflag_)
-                        {
-                            break;
-                        }
-
-                        isBusy_.store(true);
-                        //run task
-                        execute();
-
-                        if (exitflag_)
-                        {
-                            break;
-                        }
-
-                    }
-                });
+            idleSinceMs_.store(nowMs());
+            thread_ = std::thread([this]() { run(); });
         }
 
-        ///@brief find tasks by name
-        std::vector<TaskBasePtr> findTasks(const std::string& name)
+        ~Worker()
         {
-            std::vector<TaskBasePtr> tasks;
-            std::unique_lock<std::mutex> lock(normalTasks_.mutex());
-            for (auto& task : normalTasks_.deque())
-            {
-                if (task->name() == name)
-                {
-                    tasks.push_back(task);
-                }
-            }
-            lock.unlock();
-            std::unique_lock<std::mutex> lock1(highPriorityTasks_.mutex());
-            for (auto& task : highPriorityTasks_.deque())
-            {
-                if (task->name() == name)
-                {
-                    tasks.push_back(task);
-                }
-            }
-            lock1.unlock();
-            std::unique_lock<std::mutex> lock2(lowPriorityTasks_.mutex());
-            for (auto& task : lowPriorityTasks_.deque())
-            {
-                if (task->name() == name)
-                {
-                    tasks.push_back(task);
-                }
-            }
-            lock2.unlock();
-            return tasks;
+            shutdown();
         }
-        ///@brief force shutdown worker and forgive all task in queue whether it is finished or not
-        [[maybe_unused]]
-        bool shutdown()
+
+        Worker(const Worker&) = delete;
+        Worker& operator=(const Worker&) = delete;
+
+        // ========== 任务提交 ==========
+
+        template <typename F, typename... Args, typename R = std::invoke_result_t<F, Args...>>
+        TaskResultPtr<R> submit(const TaskBase::Priority& priority, F&& function, Args&&... args)
         {
-            exitflag_.store(true);
-            std::lock_guard threadLock(threadMutex_);
+            auto task = makeTask(priority, std::forward<F>(function), std::forward<Args>(args)...);
+            enqueue(task);
+            return task->getTaskResult();
+        }
+
+        template <typename F, typename... Args, typename R = std::invoke_result_t<F, Args...>>
+        TaskResultPtr<R> submit(F&& function, Args&&... args)
+        {
+            auto task = makeTask(TaskBase::Normal, std::forward<F>(function), std::forward<Args>(args)...);
+            enqueue(task);
+            return task->getTaskResult();
+        }
+
+        template <typename F, typename... Args, typename R = std::invoke_result_t<F, Args...>>
+        TaskResultPtr<R> submit(TaskPtr<F, R, Args...> task)
+        {
+            enqueue(task);
+            return task->getTaskResult();
+        }
+
+        void submit(TaskBasePtr task)
+        {
+            enqueue(task);
+        }
+
+        // ========== 生命周期 ==========
+
+        /// @brief 优雅关闭：等队列清空后停止
+        void shutdown()
+        {
+            {
+                std::lock_guard<std::mutex> lk(mtx_);
+                exitFlag_.store(true);
+            }
+            cv_.notify_one();
             if (thread_.joinable())
-            {
                 thread_.join();
-                return true;
-            }
-            return true;
+            state_.store(State::Stopped);
         }
-        ///@brief get string id
-        std::string idString() const {
+
+        // ========== 状态查询 ==========
+
+        State state() const { return state_.load(); }
+        bool isBusy() const { return state_.load() == State::Busy; }
+        bool isIdle() const { return state_.load() == State::Idle; }
+        bool isStopped() const { return state_.load() == State::Stopped; }
+        int64_t idleSince() const { return idleSinceMs_.load(); }
+
+        size_t taskCount()
+        {
+            std::lock_guard<std::mutex> lk(mtx_);
+            return highPriorityTasks_.size() + normalTasks_.size() + lowPriorityTasks_.size();
+        }
+        size_t highPriorityTaskCount() { std::lock_guard<std::mutex> lk(mtx_); return highPriorityTasks_.size(); }
+        size_t normalPriorityTaskCount() { std::lock_guard<std::mutex> lk(mtx_); return normalTasks_.size(); }
+        size_t lowPriorityTaskCount() { std::lock_guard<std::mutex> lk(mtx_); return lowPriorityTasks_.size(); }
+
+        std::string idString() const
+        {
             std::ostringstream os;
             os << thread_.get_id();
             return os.str();
         }
-        ///@brief get result of if worker is on work
-        bool isBusy() const
+
+        std::vector<TaskBasePtr> findTasks(const std::string& name)
         {
-            return isBusy_.load();
+            std::vector<TaskBasePtr> result;
+            std::lock_guard<std::mutex> lk(mtx_);
+            findInQueue(highPriorityTasks_, name, result);
+            findInQueue(normalTasks_, name, result);
+            findInQueue(lowPriorityTasks_, name, result);
+            return result;
         }
-        /// @brief decide a highest priority task
-        std::optional<TaskBasePtr> decideHighestPriorityTask()
+
+    private:
+        void enqueue(TaskBasePtr task)
+        {
+            {
+                std::lock_guard<std::mutex> lk(mtx_);
+                switch (task->priority())
+                {
+                    case TaskBase::High:   highPriorityTasks_.enqueue(task); break;
+                    case TaskBase::Normal: normalTasks_.enqueue(task); break;
+                    case TaskBase::low:    lowPriorityTasks_.enqueue(task); break;
+                }
+            }
+            cv_.notify_one();
+        }
+
+        void findInQueue(XDeque<TaskBasePtr>& queue, const std::string& name, std::vector<TaskBasePtr>& result)
+        {
+            std::unique_lock<std::mutex> lock(queue.mutex());
+            for (auto& task : queue.deque())
+            {
+                if (task->name() == name)
+                    result.push_back(task);
+            }
+        }
+
+        std::optional<TaskBasePtr> takeHighestPriorityTask()
         {
             if (!highPriorityTasks_.empty())
-            {
                 return highPriorityTasks_.tryPop();
-            }
             if (!normalTasks_.empty())
-            {
                 return normalTasks_.tryPop();
-            }
             if (!lowPriorityTasks_.empty())
-            {
                 return lowPriorityTasks_.tryPop();
-            }
             return std::nullopt;
         }
-        ///@brief generate a uuid
-        static std::string generateUUID() {
-            std::random_device rd;
-            std::mt19937 rng(rd());
-            std::uniform_int_distribution<> uni(0, 15);
 
-            const char* chars = "0123456789ABCDEF";
-            const char* uuidTemplate = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx";
+        /// @brief worker 线程主循环
+        void run()
+        {
+            while (true)
+            {
+                TaskBasePtr task;
+                // 在锁内等待任务到达或退出信号
+                {
+                    std::unique_lock<std::mutex> lk(mtx_);
+                    cv_.wait(lk, [this]() {
+                        return exitFlag_.load()
+                            || !highPriorityTasks_.empty()
+                            || !normalTasks_.empty()
+                            || !lowPriorityTasks_.empty();
+                    });
 
-            std::string uuid(uuidTemplate);
+                    if (exitFlag_.load())
+                        break;
 
-            for (auto& c : uuid) {
-                if (c != 'x' && c != 'y') {
-                    continue;
+                    auto opt = takeHighestPriorityTask();
+                    if (opt.has_value())
+                        task = opt.value();
                 }
-                const int r = uni(rng);
-                c = chars[(c == 'y' ? (r & 0x3) | 0x8 : r)];
-            }
 
-            return uuid;
-        }
-        ///@brief submit a task with priority
-        template <typename F, typename... Args, typename R = typename std::invoke_result_t<F, Args...>>
-        TaskResultPtr<R> submit(const TaskBase::Priority& priority, F&& function, Args&&...args)
-        {
-            auto task = makeTask(priority, std::forward<F>(function), std::forward<Args>(args)...);
-            enQueueTaskByPriority(task);
-            return task->getTaskResult();
-        }
-        ///@brief submit a task with default priority
-        template <typename F, typename... Args, typename R = typename std::invoke_result_t<F, Args...>>
-        TaskResultPtr<R> submit(F&& function, Args&&...args)
-        {
-            auto task = makeTask(TaskBase::Normal, std::forward<F>(function), std::forward<Args>(args)...);
-            enQueueTaskByPriority(task);
-            return task->getTaskResult();
-        }
-        ///@brief submit a pre-made task with priority
-        template <typename F, typename... Args, typename R = typename std::invoke_result_t<F, Args...>>
-        TaskResultPtr<R> submit(TaskPtr<F, R, Args...> task)
-        {
-            enQueueTaskByPriority(task);
-            return task->getTaskResult();
+                if (task)
+                {
+                    state_.store(State::Busy);
+                    task->run();
+                    state_.store(State::Idle);
+                    idleSinceMs_.store(nowMs());
+                }
+            }
+            state_.store(State::Stopped);
         }
 
-        ///@brief submit a TaskBasePtr (used by submitSome)
-        void submit(TaskBasePtr task)
+        static int64_t nowMs()
         {
-            enQueueTaskByPriority(task);
+            return std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::steady_clock::now().time_since_epoch()
+            ).count();
         }
-
-        /// @brief enqueue by priority.
-        void enQueueTaskByPriority(TaskBasePtr task)
-        {
-            if (task->priority() == TaskBase::Normal)
-            {
-                normalTasks_.enqueue(task);
-                isBusy_.store(true);
-                return;
-            }
-            if (task->priority() == TaskBase::High)
-            {
-                highPriorityTasks_.enqueue(task);
-                isBusy_.store(true);
-                return;
-            }
-            if (task->priority() == TaskBase::low)
-            {
-                lowPriorityTasks_.enqueue(task);
-                isBusy_.store(true);
-                return;
-            }
-        }
-        ///@brief execute a task
-        void execute()
-        {
-            auto taskOpt = decideHighestPriorityTask();
-            if (taskOpt.has_value())
-            {
-                auto task = taskOpt.value();
-                task->run();
-            }
-        }
-
-        size_t taskCount() { return normalTasks_.size() + highPriorityTasks_.size() + lowPriorityTasks_.size(); }
-        size_t normalPriorityTaskCount() { return normalTasks_.size(); }
-        size_t highPriorityTaskCount() { return highPriorityTasks_.size(); }
-        size_t lowPriorityTaskCount() { return lowPriorityTasks_.size(); }
-        void clear() { normalTasks_.clear(); highPriorityTasks_.clear(); lowPriorityTasks_.clear(); }
-
     };
-    using WorkerPtr = std::shared_ptr<Worker>;
 
+    using WorkerPtr = std::shared_ptr<Worker>;
 }

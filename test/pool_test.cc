@@ -6,9 +6,6 @@
 using namespace std;
 using namespace xander;
 
-// 定义一个全局斐波那契函数
-
-// 定义一个类A
 class ClassA
 {
 public:
@@ -25,18 +22,13 @@ public:
     }
 };
 
-// 定义测试套件
 class PoolTest : public ::testing::Test
 {
 protected:
     void SetUp() override
     {
-        pool.setWorkerExpiryTime(100); // 缩短 GC 周期，加速测试
+        pool.setWorkerExpiryTime(100); // 快速回收用于测试
     }
-
-    //    void TearDown() override {
-    //
-    //    }
 
     Pool pool;
     ClassA aobj;
