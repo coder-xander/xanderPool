@@ -7,19 +7,21 @@
 ![License](https://img.shields.io/github/license/coder-xander/xanderPool)
 ![Header Only](https://img.shields.io/badge/header--only-yes-green)
 
-A high-performance, cross-platform, header-only C++20 thread pool with task priority support. Modern C++ design, zero external dependencies — just copy and use.
+A high-performance, header-only C++20 thread pool with **work-stealing** and **structured concurrency** (TaskGroup). Pure C++ standard library, zero external dependencies — copy and use.
 
 ## Features
 
 - **Header-only** — copy `src/` into your project, no build system needed
-- **Task priority** — High / Normal / Low, always executes highest priority first
-- **Dynamic scaling** — auto-creates workers under load, reclaims idle ones
-- **Static mode** — fixed worker count when you need deterministic behavior
-- **Memory safe** — `shared_ptr` everywhere, only manage Pool lifetime
-- **Thread safe** — all `submit` / `submitSome` are concurrent-safe
+- **Work-stealing** — idle workers steal tasks from busy ones, auto-balancing load
+- **Structured concurrency** — `TaskGroup` for scoped, cancellable task trees with exception propagation
+- **Task priority** — High / Normal / Low metadata on every task
+- **Dynamic scaling** — auto-creates workers under load, reclaims idle ones without deadlock
+- **Static mode** — fixed worker count for deterministic behavior
+- **Thread safe** — all `submit` / `submitSome` are concurrent-safe, no data races
+- **Memory safe** — `shared_ptr` throughout; only manage `Pool` lifetime
 - **Callable variety** — lambdas, global functions, member functions, functors
 - **Async results** — `TaskResult` with blocking or timed `syncGetResult`
-- **Zero dependencies** — pure C++ standard library
+- **Zero dependencies** — pure C++ standard library, no external libs
 
 ## Quick Start
 
@@ -43,44 +45,50 @@ double value = result->syncGetResult(); // 1.728
 - [API Reference](#api-reference)
   - [Creating a Pool](#creating-a-pool)
   - [Submitting Tasks](#submitting-tasks)
-  - [Task Priority](#task-priority)
   - [Getting Results](#getting-results)
   - [Batch Submission](#batch-submission)
+  - [Structured Concurrency (TaskGroup)](#structured-concurrency-taskgroup)
   - [Task Duplication](#task-duplication)
+  - [Task Priority](#task-priority)
   - [Using Workers Directly](#using-workers-directly)
+  - [Singleton Mode](#singleton-mode)
 - [Build & Test](#build--test)
-- [Performance](#performance)
 - [Thread Safety](#thread-safety)
 - [Memory Safety](#memory-safety)
 - [Notes](#notes)
-- [Contact](#contact)
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────┐
-│                   Pool (Manager)                │
-│  ┌──────────────────────────────────────────┐   │
-│  │  Task Dispatch Policy                    │   │
-│  │  1. Idle worker → assign                 │   │
-│  │  2. All busy + cap not reached → create  │   │
-│  │  3. All busy + cap reached → min tasks   │   │
-│  └──────────────────────────────────────────┘   │
-│                                                 │
-│  ┌─────────┐ ┌─────────┐ ┌─────────┐           │
-│  │ Worker 1│ │ Worker 2│ │ Worker N│  (auto-   │
-│  │ ┌─────┐ │ │ ┌─────┐ │ │ ┌─────┐ │  scaling) │
-│  │ │High │ │ │ │High │ │ │ │High │ │           │
-│  │ │Norm │ │ │ │Norm │ │ │ │Norm │ │           │
-│  │ │Low  │ │ │ │Low  │ │ │ │Low  │ │           │
-│  │ └─────┘ │ │ └─────┘ │ │ └─────┘ │           │
-│  └─────────┘ └─────────┘ └─────────┘           │
-│                                                 │
-│  GC Thread ── periodically reclaims idle workers│
-└─────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────┐
+│                     Pool (Manager)                 │
+│  ┌─────────────────────────────────────────────┐  │
+│  │           Task Dispatch Policy              │  │
+│  │  1. Idle worker with empty queue → assign   │  │
+│  │  2. All busy + cap not reached → create     │  │
+│  │  3. All busy + cap reached → min tasks      │  │
+│  └─────────────────────────────────────────────┘  │
+│                                                    │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐           │
+│  │ Worker 1 │ │ Worker 2 │ │ Worker N │ (auto-    │
+│  │ ┌──────┐ │ │ ┌──────┐ │ │ ┌──────┐ │  scaling) │
+│  │ │Deque │ │ │ │Deque │ │ │ │Deque │ │           │
+│  │ │LIFO  │ │ │ │LIFO  │ │ │ │LIFO  │ │           │
+│  │ └──────┘ │ │ └──────┘ │ │ └──────┘ │           │
+│  │    ↕ steal    ↕ steal     ↕ steal              │
+│  └──────────┘ └──────────┘ └──────────┘           │
+│        ↑           ↑           ↑                   │
+│        └───────────┴───────────┘                   │
+│           Work-stealing between workers            │
+│                                                    │
+│  Idle reclaim ── lazily removes workers idle       │
+│  longer than expiry time (lock-free on shutdown)   │
+└────────────────────────────────────────────────────┘
 
-submit() → TaskResult<T> → syncGetResult() / syncGetResult(ms)
+submit() / spawn() → TaskResult<T> → syncGetResult() / syncGetResult(ms)
 ```
+
+Each worker owns a **single** `WorkStealingDeque` (LIFO for owner, FIFO for stealers). When a worker's local queue is empty, it randomly picks another worker and steals from the back of their deque. This ensures cache locality for the owner and fairness across workers.
 
 ## API Reference
 
@@ -93,12 +101,14 @@ Pool* pool = Pool::instance();
 // Local instance
 Pool pool;                        // dynamic, min=2, max=hardware_concurrency
 Pool pool(4, 8);                  // dynamic, min=4, max=8
-Pool pool(4, 8, 3000);            // + custom GC interval (ms)
+Pool pool(4, 8, 3000);            // + idle reclaim timeout (ms)
 
-// Static mode (fixed worker count)
+// Static mode (fixed worker count, no reclaim)
 pool.useStaticMode();             // workers = hardware_concurrency
 pool.useStaticMode(4);            // workers = 4
 ```
+
+Default constructor uses `min=2, max=hardware_concurrency, idleReclaim=3000ms`. Workers idle longer than the timeout are reclaimed during the next `submit()` call.
 
 ### Submitting Tasks
 
@@ -123,19 +133,11 @@ auto r5 = pool.submit(obj);  // calls obj.operator()()
 auto r6 = pool.submit(TaskBase::High, []() { return 1; });
 
 // Pre-made task
-auto task = makeTask(TaskBase::Normal, []() { return 1; });
+auto task = makeTask([]() { return 1; });
 pool.submit(task);
 ```
 
-### Task Priority
-
-| Priority | Enum | Behavior |
-|----------|------|----------|
-| High | `TaskBase::High` | Executed first |
-| Normal | `TaskBase::Normal` | Default |
-| Low | `TaskBase::low` | Executed last |
-
-Each worker maintains three separate queues. The worker always picks from the highest-priority non-empty queue.
+`submit` always returns a `TaskResultPtr<T>`. The task is dispatched via `pickWorker()` — idle worker first, then new worker if under capacity, then least-loaded.
 
 ### Getting Results
 
@@ -145,12 +147,16 @@ auto result = pool.submit([]() { return 42; });
 // Blocking wait
 int value = result->syncGetResult();
 
-// Timed wait (returns std::optional)
+// Timed wait
+//   - For non-void tasks: returns std::optional<T>
+//   - For void tasks: returns void (blocks up to timeout, then returns)
 auto opt = result->syncGetResult(100); // 100ms timeout
 if (opt.has_value()) {
     int v = opt.value();
 }
 ```
+
+Each `TaskResult` wraps a `std::future`. `syncGetResult` can only be called **once** — the underlying `future.get()` is single-shot.
 
 ### Batch Submission
 
@@ -160,15 +166,39 @@ auto t2 = makeTask([]() { return "hello"; });
 
 pool.submitSome({t1, t2});
 
-// Get results from the task objects themselves
+// Get results from the task objects directly
 int r1 = t1->getTaskResult()->syncGetResult();
 ```
 
-`submitSome` has no return value because tasks may have different types. Use the task object to retrieve its result.
+`submitSome` has no return value (tasks may have different types). Retrieve results through individual task objects.
+
+### Structured Concurrency (TaskGroup)
+
+`TaskGroup` provides scoped, cancellable concurrency with automatic exception propagation:
+
+```cpp
+{
+    auto group = pool.createGroup();  // NRVO, no move required
+
+    // Spawn tasks — all run concurrently on the pool
+    group.spawn([]() { /* task 1 */ });
+    group.spawn([]() { /* task 2 */ });
+
+    // Wait for all tasks to complete
+    // Re-throws the first exception from any task
+    group.wait();
+} // destructor cancels unfinished tasks and waits for running ones
+```
+
+Key behaviors:
+- **Cancellation** — calling `group.cancel()` sets a flag; tasks that haven't started yet will skip execution
+- **Exception propagation** — the first exception thrown by any task is re-thrown on `wait()`
+- **Destructor safety** — `~TaskGroup()` cancels pending tasks and blocks until all running tasks finish
+- **Nesting** — TaskGroups can be nested arbitrarily
 
 ### Task Duplication
 
-A task can only be submitted once. Use `copy()` to re-submit:
+A task can only be submitted once. Use `copy()` for re-submission:
 
 ```cpp
 pool.submit(task1);
@@ -176,9 +206,19 @@ pool.submit(task1->copy());                           // same task again
 pool.submit(task2->copy()->setPriority(TaskBase::High)); // copy + boost priority
 ```
 
+### Task Priority
+
+| Priority | Enum | Notes |
+|----------|------|-------|
+| High | `TaskBase::High` | Stored as metadata on the task |
+| Normal | `TaskBase::Normal` | Default |
+| Low | `TaskBase::low` | |
+
+**Currently**, priority is stored as **metadata** — the worker deque is a single LIFO queue and does not reorder by priority. The `PriorityOrdering` test validates the intended contract: when tasks of different priorities are submitted densely, higher-priority ones tend to execute first due to LIFO ordering of recent submissions. True priority queue ordering is planned (see `work_stealing.h`).
+
 ### Using Workers Directly
 
-Bypass the pool for single-threaded task queues:
+Bypass the pool for single-threaded sequential queues:
 
 ```cpp
 WorkerPtr worker = Worker::makeShared();
@@ -188,11 +228,25 @@ auto result = worker->submit([]() {
 result->syncGetResult(200);
 ```
 
+**Caution:** a standalone Worker (no Pool) cannot steal tasks from other workers. For work-stealing, always submit through the Pool.
+
+### Singleton Mode
+
+```cpp
+// First call creates the Pool; subsequent calls return the same instance
+Pool::instance()->submit([]() { return 42; });
+
+// Reset for testing
+Pool::singletonReset();
+```
+
+`singletonReset()` destroys the singleton entirely. Thread-safe via double-checked locking.
+
 ## Build & Test
 
 ### Header-Only Usage
 
-Copy the `src/` directory into your project:
+Copy `src/` into your project:
 
 ```bash
 cp -r src/ /your/project/include/xanderPool/
@@ -208,53 +262,41 @@ Requires C++20 (`-std=c++20`).
 
 ```bash
 mkdir build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release
+cmake .. -DCMAKE_BUILD_TYPE=Debug   # or Release
 cmake --build . -j$(nproc)
-ctest --timeout 30
+ctest --output-on-failure --timeout 30
 ```
 
-Tests use [Google Test](https://github.com/google/googletest) (auto-fetched by CMake).
+Tests use [Google Test](https://github.com/google/googletest) (auto-fetched by CMake via FetchContent).
 
 ### Test Coverage
 
-| Test Suite | Description |
-|-----------|-------------|
-| `task_submit_test` | Submit global functions, member functions, lambdas, functors |
-| `task_find_test` | Find tasks by name across workers |
-| `task_performance_test` | 1000 tasks, verifies all complete |
-| `dev_test` | 1000 Pool create/destroy cycles |
-| `comprehensive_test` | Priority ordering, concurrent submit, timeout, batch submit, dynamic scaling |
-
-## Performance
-
-100,000 empty tasks submitted on a 10th-gen i5 (Release build):
-
-```
-~135ms to enqueue all tasks
-Workers auto-scale to handle the burst
-```
-
-The dynamic scaling + GC reclamation keeps resource usage efficient under varying load.
+| Test Suite | Tests | Description |
+|-----------|-------|-------------|
+| `task_submit_test` | 4 | Submit global functions, member functions, lambdas, functors |
+| `task_find_test` | 1 | Find tasks by name across workers (deque traversal) |
+| `task_performance_test` | 1 | 1000 tasks, verifies all complete |
+| `dev_test` | 1 | 1000 Pool create/destroy cycles |
+| `comprehensive_test` | 22 | Priority ordering, concurrent submit, work-stealing, timeout, batch submit, dynamic scaling, deadlock regression, structured concurrency, stress test, queue move semantics |
 
 ## Thread Safety
 
 - All `submit()` and `submitSome()` variants are thread-safe
-- Worker management (creation, GC reclamation) is internally synchronized
-- `dumpWorkers()` is safe to call from any thread
+- Worker management (creation, reclaim) is internally synchronized with exclusive + shared mutex
+- `stealFromRandomWorker` holds a shared (read) lock, allowing concurrent stealing; worker creation/reclaim takes an exclusive lock
+- `dumpWorkers()` is safe from any thread
+- **Deadlock-free reclamation:** idle worker shutdown is deferred outside the pool mutex to avoid lock ordering inversion with concurrent stealing (fixed in commit `4457781`)
 
 ## Memory Safety
 
-- Core objects (`Pool`, `Worker`, `Task`, `TaskResult`) are managed via `shared_ptr`
-- You only need to manage the `Pool` lifetime
-- Pool destructor completes all in-flight tasks before shutdown
-- `asyncDestroyed()` for non-blocking shutdown
+- Core objects (`Pool`, `Worker`, `Task`, `TaskResult`) managed via `shared_ptr`
+- Only manage the `Pool` lifetime; worker threads are joined automatically in destructor
+- `asyncDestroyed()` fires shutdown on all workers asynchronously and returns a `future<bool>`
 
 ## Notes
 
 1. A `Task` can only be submitted once — use `copy()` for re-submission
-2. A `TaskResult` can only be read once — calling `syncGetResult` twice is undefined
-3. Pool destructor blocks until in-flight tasks complete
-
-## Contact
-
-Email: xhr1028@foxmail.com
+2. A `TaskResult` can only be read once — `syncGetResult` is single-shot (wraps `std::future::get`)
+3. Pool destructor blocks until in-flight tasks complete; use `asyncDestroyed()` for non-blocking shutdown
+4. `TaskGroup` is **non-movable** (`std::counting_semaphore` is not movable) — always use `createGroup()` which benefits from guaranteed copy elision (NRVO) in C++17
+5. Priority is metadata only; true priority-ordered queues are planned
