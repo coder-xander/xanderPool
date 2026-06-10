@@ -7,7 +7,7 @@
 ![License](https://img.shields.io/github/license/coder-xander/xanderPool)
 ![Header Only](https://img.shields.io/badge/header--only-yes-green)
 
-高性能、header-only 的 C++20 线程池，支持 **工作窃取（work-stealing）** 和 **结构化并发（TaskGroup）**。纯 C++ 标准库实现，零外部依赖，拷贝即用。基于现代 C++ 并发模式的学习实现。
+Header-only 的 C++20 线程池，支持 **工作窃取（work-stealing）** 和 **结构化并发（TaskGroup）**。纯 C++ 标准库实现，零外部依赖，拷贝即用。基于现代 C++ 并发模式的学习实现。
 
 ## 特性
 
