@@ -274,10 +274,19 @@ Tests use [Google Test](https://github.com/google/googletest) (auto-fetched by C
 | Test Suite | Tests | Description |
 |-----------|-------|-------------|
 | `task_submit_test` | 4 | Submit global functions, member functions, lambdas, functors |
-| `task_find_test` | 1 | Find tasks by name across workers (deque traversal) |
+| `task_find_test` | 1 | Find tasks by name across workers |
 | `task_performance_test` | 1 | 1000 tasks, verifies all complete |
 | `dev_test` | 1 | 1000 Pool create/destroy cycles |
-| `comprehensive_test` | 22 | Priority ordering, concurrent submit, work-stealing, timeout, batch submit, dynamic scaling, deadlock regression, structured concurrency, stress test, queue move semantics |
+| `test_work_stealing` | 3 | Work-stealing basic, uneven load, stress with reclaim |
+| `test_task_group` | 6 | TaskGroup basic, return values, cancel, exception, nested, NRVO |
+| `test_priority` | 1 | Priority ordering (single worker, LIFO-based) |
+| `test_concurrent_safety` | 1 | 8 threads × 100 submits, no data races |
+| `test_batch` | 1 | Batch submission via submitSome |
+| `test_timeout` | 1 | syncGetResult timeout returns empty optional |
+| `test_scaling` | 1 | Dynamic worker scaling min→max |
+| `test_reclaim` | 2 | Deadlock regression + concurrent reclaim with submit |
+| `test_queue_move` | 1 | XDeque enqueue move semantics verification |
+| **Total** | **24** | One file per topic, each independently runnable |
 
 ## Thread Safety
 

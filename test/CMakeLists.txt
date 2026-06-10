@@ -12,48 +12,72 @@ FetchContent_Declare(
 # 拉取并设置 gtest
 FetchContent_MakeAvailable(gtest)
 
-# 查找所有测试源文件
-file(GLOB_RECURSE TEST_SOURCES "*.cpp" "*.h")
+# ============================================================
+# 每个测试一个独立的可执行文件，一个文件测试一个主题
+# ============================================================
 
-# find task 测试
+# --- 查找任务 ---
 add_executable(task_find_test task_find.cc   pool_test.cc)
-
-# 链接库
 target_link_libraries(task_find_test PRIVATE xander_pool  gtest gtest_main)
-
-## 注册测试
 add_test(NAME task_find_test COMMAND task_find_test)
 
-
-
-# 提交测试
+# --- 基础提交 ---
 add_executable(task_submit_test task_submit_test.cc   pool_test.cc)
-
-# 链接库
 target_link_libraries(task_submit_test PRIVATE xander_pool  gtest gtest_main)
-
-## 注册测试
 add_test(NAME task_submit_test COMMAND task_submit_test)
 
-
-#性能测试
+# --- 性能 ---
 add_executable(task_performance_test task_performance.cc   pool_test.cc)
-# 链接库
 target_link_libraries(task_performance_test PRIVATE xander_pool  gtest gtest_main)
-
-## 注册测试
 add_test(NAME task_performance_test COMMAND task_performance_test)
 
-
-#开发测试
+# --- 开发（快速创建销毁）---
 add_executable(dev_test dev_test.cc   pool_test.cc)
-# 链接库
 target_link_libraries(dev_test PRIVATE xander_pool  gtest gtest_main)
-
-## 注册测试
 add_test(NAME dev_test COMMAND dev_test)
 
-# 综合测试（bug 覆盖 + 边界场景）
-add_executable(comprehensive_test comprehensive_test.cc pool_test.cc)
-target_link_libraries(comprehensive_test PRIVATE xander_pool gtest gtest_main)
-add_test(NAME comprehensive_test COMMAND comprehensive_test)
+# --- Work-Stealing ---
+add_executable(test_work_stealing test_work_stealing.cc pool_test.cc)
+target_link_libraries(test_work_stealing PRIVATE xander_pool gtest gtest_main)
+add_test(NAME test_work_stealing COMMAND test_work_stealing)
+
+# --- TaskGroup ---
+add_executable(test_task_group test_task_group.cc pool_test.cc)
+target_link_libraries(test_task_group PRIVATE xander_pool gtest gtest_main)
+add_test(NAME test_task_group COMMAND test_task_group)
+
+# --- 优先级 ---
+add_executable(test_priority test_priority.cc pool_test.cc)
+target_link_libraries(test_priority PRIVATE xander_pool gtest gtest_main)
+add_test(NAME test_priority COMMAND test_priority)
+
+# --- 并发安全 ---
+add_executable(test_concurrent_safety test_concurrent_safety.cc pool_test.cc)
+target_link_libraries(test_concurrent_safety PRIVATE xander_pool gtest gtest_main)
+add_test(NAME test_concurrent_safety COMMAND test_concurrent_safety)
+
+# --- 批量提交 ---
+add_executable(test_batch test_batch.cc pool_test.cc)
+target_link_libraries(test_batch PRIVATE xander_pool gtest gtest_main)
+add_test(NAME test_batch COMMAND test_batch)
+
+# --- 超时 ---
+add_executable(test_timeout test_timeout.cc pool_test.cc)
+target_link_libraries(test_timeout PRIVATE xander_pool gtest gtest_main)
+add_test(NAME test_timeout COMMAND test_timeout)
+
+# --- 动态扩缩 ---
+add_executable(test_scaling test_scaling.cc pool_test.cc)
+target_link_libraries(test_scaling PRIVATE xander_pool gtest gtest_main)
+add_test(NAME test_scaling COMMAND test_scaling)
+
+# --- Worker 回收（死锁回归）---
+add_executable(test_reclaim test_reclaim.cc pool_test.cc)
+target_link_libraries(test_reclaim PRIVATE xander_pool gtest gtest_main)
+add_test(NAME test_reclaim COMMAND test_reclaim)
+
+# --- XDeque move 语义（独立测试，无需 Pool）---
+add_executable(test_queue_move test_queue_move.cc)
+target_link_libraries(test_queue_move PRIVATE gtest gtest_main)
+target_include_directories(test_queue_move PRIVATE ${CMAKE_SOURCE_DIR}/src)
+add_test(NAME test_queue_move COMMAND test_queue_move)

@@ -274,10 +274,19 @@ ctest --output-on-failure --timeout 30
 | 测试套件 | 测试数 | 说明 |
 |---------|-------|------|
 | `task_submit_test` | 4 | 全局函数、成员函数、lambda、仿函数提交 |
-| `task_find_test` | 1 | 按名称在 worker 中查找任务（deque 遍历） |
+| `task_find_test` | 1 | 按名称在 worker 中查找任务 |
 | `task_performance_test` | 1 | 1000 个任务，验证全部完成 |
 | `dev_test` | 1 | 1000 次 Pool 创建/销毁循环 |
-| `comprehensive_test` | 22 | 优先级排序、并发提交、工作窃取、超时、批量提交、动态扩缩容、死锁回归、结构化并发、压力测试、队列 move 语义 |
+| `test_work_stealing` | 3 | work-stealing 基础、不均衡负载、带回收的压力测试 |
+| `test_task_group` | 6 | TaskGroup 基础、返回值收集、取消、异常、嵌套、NRVO |
+| `test_priority` | 1 | 优先级排序（单 worker，LIFO 特性） |
+| `test_concurrent_safety` | 1 | 8 线程 × 100 提交，无数据竞争 |
+| `test_batch` | 1 | submitSome 批量提交 |
+| `test_timeout` | 1 | syncGetResult 超时返回空 optional |
+| `test_scaling` | 1 | 动态扩缩容 min→max |
+| `test_reclaim` | 2 | 死锁回归 + 并发提交中回收 |
+| `test_queue_move` | 1 | XDeque enqueue move 语义验证 |
+| **合计** | **24** | 一文一主题，各自独立运行 |
 
 ## 线程安全
 
