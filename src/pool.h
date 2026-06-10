@@ -258,9 +258,9 @@ namespace xander
         std::string dumpWorkers()
         {
             std::stringstream ss;
-            ss << "+-------------------+------+--------+\n";
-            ss << "| Thread ID         | Tasks| State  |\n";
-            ss << "+-------------------+------+--------+\n";
+            ss << "+-------------------+------+--------+-------+--------+------+------+\n";
+            ss << "| Thread ID         | Tasks| State  | Steals| Stolen | Idle | Exec |\n";
+            ss << "+-------------------+------+--------+-------+--------+------+------+\n";
             std::shared_lock lock(workersMutex_);
             for (auto& w : workers_)
             {
@@ -273,9 +273,14 @@ namespace xander
                 }
                 ss << "| " << std::setw(16) << w->idString()
                    << " | " << std::setw(4) << w->taskCount()
-                   << " | " << std::setw(6) << s << " |\n";
+                   << " | " << std::setw(6) << s
+                   << " | " << std::setw(5) << w->stealAttempts_.load()
+                   << " | " << std::setw(6) << w->tasksStolenAway_.load()
+                   << " | " << std::setw(4) << w->idleWaits_.load()
+                   << " | " << std::setw(4) << w->tasksExecuted_.load()
+                   << " |\n";
             }
-            ss << "+-------------------+------+--------+\n";
+            ss << "+-------------------+------+--------+-------+--------+------+------+\n";
             return ss.str();
         }
 

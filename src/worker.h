@@ -41,6 +41,13 @@ namespace xander
         std::atomic<int64_t> idleSinceMs_{0};
 
     public:
+        // ========== 性能遥测 ==========
+        std::atomic<uint64_t> stealAttempts_{0};   // 尝试从别人那偷的次数
+        std::atomic<uint64_t> tasksStolenAway_{0}; // 被其他人偷走的任务数
+        std::atomic<uint64_t> idleWaits_{0};       // 进入空闲等待的次数
+        std::atomic<uint64_t> tasksExecuted_{0};   // 已执行的任务数
+
+    public:
         static std::shared_ptr<Worker> makeShared(Pool* pool = nullptr)
         {
             return std::make_shared<Worker>(pool);
@@ -106,7 +113,10 @@ namespace xander
         /// @brief 尝试从本 worker 窃取任务（供其他 worker 调用）
         std::optional<TaskBasePtr> trySteal()
         {
-            return localDeque_.steal();
+            auto task = localDeque_.steal();
+            if (task.has_value())
+                tasksStolenAway_.fetch_add(1);
+            return task;
         }
 
         // ========== 生命周期 ==========
@@ -158,6 +168,7 @@ namespace xander
                 // 2. 本地空，尝试从其他 worker 窃取（先检查退出标志避免死锁）
                 if (!task.has_value() && !exitFlag_.load())
                 {
+                    stealAttempts_.fetch_add(1);
                     task = tryStealFromOthers();
                 }
 
@@ -166,6 +177,7 @@ namespace xander
                 {
                     state_.store(State::Busy);
                     task.value()->run();
+                    tasksExecuted_.fetch_add(1);
                     state_.store(State::Idle);
                     idleSinceMs_.store(nowMs());
                 }
@@ -174,6 +186,7 @@ namespace xander
                     // 4. 没有任务可做，等待唤醒
                     state_.store(State::Idle);
                     idleSinceMs_.store(nowMs());
+                    idleWaits_.fetch_add(1);
                     std::unique_lock<std::mutex> lk(mtx_);
                     cv_.wait(lk, [this]() {
                         return exitFlag_.load() || !localDeque_.empty();

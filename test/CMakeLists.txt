@@ -76,7 +76,7 @@ add_executable(test_reclaim test_reclaim.cc pool_test.cc)
 target_link_libraries(test_reclaim PRIVATE xander_pool gtest gtest_main)
 add_test(NAME test_reclaim COMMAND test_reclaim)
 
-# --- XDeque + WorkStealingDeque 全面（替换 test_queue_move）---
+# --- WorkStealingDeque 全面 ---
 add_executable(test_deque test_deque.cc)
 target_link_libraries(test_deque PRIVATE gtest gtest_main)
 target_include_directories(test_deque PRIVATE ${CMAKE_SOURCE_DIR}/src)

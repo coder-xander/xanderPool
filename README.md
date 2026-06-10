@@ -7,7 +7,7 @@
 ![License](https://img.shields.io/github/license/coder-xander/xanderPool)
 ![Header Only](https://img.shields.io/badge/header--only-yes-green)
 
-A high-performance, header-only C++20 thread pool with **work-stealing** and **structured concurrency** (TaskGroup). Pure C++ standard library, zero external dependencies — copy and use.
+A header-only C++20 thread pool with **work-stealing** and **structured concurrency** (TaskGroup). Pure C++ standard library, zero external dependencies — copy and use. Designed as a learning implementation of modern C++ concurrency patterns.
 
 ## Features
 
@@ -285,8 +285,11 @@ Tests use [Google Test](https://github.com/google/googletest) (auto-fetched by C
 | `test_timeout` | 1 | syncGetResult timeout returns empty optional |
 | `test_scaling` | 1 | Dynamic worker scaling min→max |
 | `test_reclaim` | 2 | Deadlock regression + concurrent reclaim with submit |
-| `test_queue_move` | 1 | XDeque enqueue move semantics verification |
-| **Total** | **24** | One file per topic, each independently runnable |
+| `test_deque` | 7 | WorkStealingDeque all methods, LIFO/FIFO order, concurrent push/pop/steal |
+| `test_singleton` | 3 | Singleton instance consistency, reset, concurrent access |
+| `test_pool_config` | 5 | Static mode, min==max, query API, custom expiry |
+| `test_task_ext` | 10 | Task copy, void tasks, priority metadata, pre-made task, task name |
+| **Total** | **56** | One file per topic, each independently runnable |
 
 ## Thread Safety
 
@@ -294,13 +297,33 @@ Tests use [Google Test](https://github.com/google/googletest) (auto-fetched by C
 - Worker management (creation, reclaim) is internally synchronized with exclusive + shared mutex
 - `stealFromRandomWorker` holds a shared (read) lock, allowing concurrent stealing; worker creation/reclaim takes an exclusive lock
 - `dumpWorkers()` is safe from any thread
-- **Deadlock-free reclamation:** idle worker shutdown is deferred outside the pool mutex to avoid lock ordering inversion with concurrent stealing (fixed in commit `4457781`)
+- **Deadlock-free reclamation:** idle worker shutdown is deferred outside the pool mutex to avoid lock ordering inversion with concurrent stealing
 
 ## Memory Safety
 
 - Core objects (`Pool`, `Worker`, `Task`, `TaskResult`) managed via `shared_ptr`
 - Only manage the `Pool` lifetime; worker threads are joined automatically in destructor
 - `asyncDestroyed()` fires shutdown on all workers asynchronously and returns a `future<bool>`
+
+## Telemetry
+
+Each Worker exposes atomic counters for runtime introspection via `dumpWorkers()`:
+
+| Counter | Description |
+|---------|-------------|
+| `stealAttempts_` | Times this worker tried to steal from others |
+| `tasksStolenAway_` | Times a task was stolen from this worker by another |
+| `idleWaits_` | Times this worker entered idle wait (cv.wait) |
+| `tasksExecuted_` | Tasks actually executed by this worker |
+
+Example output:
+```
++-------------------+------+--------+-------+--------+------+------+
+| Thread ID         | Tasks| State  | Steals| Stolen | Idle | Exec |
++-------------------+------+--------+-------+--------+------+------+
+| 0x7f8c9a0b7640    |    0 | Idle   |    12 |     3  |    5 |  150 |
++-------------------+------+--------+-------+--------+------+------+
+```
 
 ## Notes
 

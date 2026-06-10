@@ -7,7 +7,7 @@
 ![License](https://img.shields.io/github/license/coder-xander/xanderPool)
 ![Header Only](https://img.shields.io/badge/header--only-yes-green)
 
-高性能、header-only 的 C++20 线程池，支持 **工作窃取（work-stealing）** 和 **结构化并发（TaskGroup）**。纯 C++ 标准库实现，零外部依赖，拷贝即用。
+高性能、header-only 的 C++20 线程池，支持 **工作窃取（work-stealing）** 和 **结构化并发（TaskGroup）**。纯 C++ 标准库实现，零外部依赖，拷贝即用。基于现代 C++ 并发模式的学习实现。
 
 ## 特性
 
@@ -285,8 +285,11 @@ ctest --output-on-failure --timeout 30
 | `test_timeout` | 1 | syncGetResult 超时返回空 optional |
 | `test_scaling` | 1 | 动态扩缩容 min→max |
 | `test_reclaim` | 2 | 死锁回归 + 并发提交中回收 |
-| `test_queue_move` | 1 | XDeque enqueue move 语义验证 |
-| **合计** | **24** | 一文一主题，各自独立运行 |
+| `test_deque` | 7 | WorkStealingDeque 全部方法、LIFO/FIFO 顺序、并发 push/pop/steal |
+| `test_singleton` | 3 | 单例一致性、reset、并发访问 |
+| `test_pool_config` | 5 | 静态模式、min==max、查询 API、自定义 expiry |
+| `test_task_ext` | 10 | Task copy、void 任务、优先级元数据、预创建任务、任务名 |
+| **合计** | **56** | 一文一主题，各自独立运行 |
 
 ## 线程安全
 
