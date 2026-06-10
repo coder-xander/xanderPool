@@ -76,8 +76,23 @@ add_executable(test_reclaim test_reclaim.cc pool_test.cc)
 target_link_libraries(test_reclaim PRIVATE xander_pool gtest gtest_main)
 add_test(NAME test_reclaim COMMAND test_reclaim)
 
-# --- XDeque move 语义（独立测试，无需 Pool）---
-add_executable(test_queue_move test_queue_move.cc)
-target_link_libraries(test_queue_move PRIVATE gtest gtest_main)
-target_include_directories(test_queue_move PRIVATE ${CMAKE_SOURCE_DIR}/src)
-add_test(NAME test_queue_move COMMAND test_queue_move)
+# --- XDeque + WorkStealingDeque 全面（替换 test_queue_move）---
+add_executable(test_deque test_deque.cc)
+target_link_libraries(test_deque PRIVATE gtest gtest_main)
+target_include_directories(test_deque PRIVATE ${CMAKE_SOURCE_DIR}/src)
+add_test(NAME test_deque COMMAND test_deque)
+
+# --- 单例模式 ---
+add_executable(test_singleton test_singleton.cc pool_test.cc)
+target_link_libraries(test_singleton PRIVATE xander_pool gtest gtest_main)
+add_test(NAME test_singleton COMMAND test_singleton)
+
+# --- Pool 配置与查询 ---
+add_executable(test_pool_config test_pool_config.cc pool_test.cc)
+target_link_libraries(test_pool_config PRIVATE xander_pool gtest gtest_main)
+add_test(NAME test_pool_config COMMAND test_pool_config)
+
+# --- Task 扩展 ---
+add_executable(test_task_ext test_task_ext.cc pool_test.cc)
+target_link_libraries(test_task_ext PRIVATE xander_pool gtest gtest_main)
+add_test(NAME test_task_ext COMMAND test_task_ext)
