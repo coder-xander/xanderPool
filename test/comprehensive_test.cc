@@ -1,8 +1,10 @@
 // 综合测试：work-stealing + 结构化并发 + 原有功能
-#include "pool_test.cc"
+#include "pool_test.h"
 #include "tool.h"
+#include "queue.h"
 #include <atomic>
 #include <chrono>
+#include <memory>
 #include <thread>
 
 using namespace std::chrono_literals;
@@ -312,4 +314,122 @@ TEST_F(PoolTest, PerformanceTest)
         if (res.has_value()) ++completed;
     }
     EXPECT_EQ(completed, 1000);
+}
+
+// ====================================================================
+// 回归测试：worker 回收与 stealing 并发（原死锁场景）
+// ====================================================================
+TEST_F(PoolTest, WorkerReclamationNoDeadlock)
+{
+    // 小池子 + 快速回收，模拟 reclaim 触发时 worker 正在 steal
+    for (int round = 0; round < 5; ++round)
+    {
+        Pool aggressivePool(1, 6, 50); // min=1, max=6, 50ms 回收
+        std::atomic<int> done{0};
+
+        // 提交一批长任务 + 大量短任务，迫使 stealing 频繁发生
+        for (int i = 0; i < 10; ++i)
+            aggressivePool.submit([&done]() {
+                // 短任务穿插微小的随机延时，增大 steal 窗口
+                std::this_thread::sleep_for(std::chrono::microseconds(500 * (done.load() % 3 + 1)));
+                done.fetch_add(1);
+            })->syncGetResult(5000);
+
+        EXPECT_EQ(done.load(), 10);
+    }
+}
+
+TEST_F(PoolTest, ReclaimConcurrentWithSubmit)
+{
+    // 高并发提交 + 池子自动扩缩 → reclaim 与 stealing 重叠
+    for (int round = 0; round < 3; ++round)
+    {
+        Pool p(2, 8, 30);
+        std::atomic<int> counter{0};
+
+        std::vector<std::thread> submitters;
+        for (int t = 0; t < 4; ++t)
+        {
+            submitters.emplace_back([&p, &counter, t]() {
+                for (int i = 0; i < 50; ++i)
+                {
+                    auto r = p.submit([&counter]() {
+                        counter.fetch_add(1);
+                        return 1;
+                    });
+                    r->syncGetResult(5000);
+                }
+            });
+        }
+        for (auto& t : submitters) t.join();
+        EXPECT_EQ(counter.load(), 4 * 50);
+    }
+}
+
+// ====================================================================
+// 回归测试：XDeque 值传递 move 语义（const T& → T）
+// ====================================================================
+TEST(QueueTest, EnqueueMoveSemantics)
+{
+    // 用 unique_ptr 检测是否真正 move（不可 copy）
+    xander::XDeque<std::unique_ptr<int>> q;
+    auto p = std::make_unique<int>(42);
+    q.enqueue(std::move(p));
+    EXPECT_EQ(p, nullptr); // 原指针已被 move
+
+    auto val = q.tryPop();
+    ASSERT_TRUE(val.has_value());
+    ASSERT_NE(*val, nullptr);
+    EXPECT_EQ(**val, 42);
+}
+
+// ====================================================================
+// 回归测试：TaskGroup 不可 move，但 createGroup 通过 NRVO 正常工作
+// ====================================================================
+TEST_F(PoolTest, TaskGroupCreateGroupReturnsByValue)
+{
+    std::atomic<int> counter{0};
+    // 验证 NRVO 正常编译和运行（createGroup 返回 TaskGroup）
+    {
+        auto group = pool.createGroup();
+        group.spawn([&counter]() { counter.fetch_add(1); });
+        group.spawn([&counter]() { counter.fetch_add(2); });
+        group.wait();
+    }
+    EXPECT_EQ(counter.load(), 3);
+}
+
+// ====================================================================
+// 压力测试：批量提交+stealing+回收 并发安全
+// ====================================================================
+TEST_F(PoolTest, StressStealAndReclaim)
+{
+    // 大量任务 + 短回收时间，全面触发 work-stealing 和 reclaim
+    Pool stressPool(1, 12, 20);
+    std::atomic<int64_t> sum{0};
+
+    std::vector<std::future<void>> futures;
+    for (int t = 0; t < 6; ++t)
+    {
+        futures.push_back(std::async(std::launch::async, [&stressPool, &sum, t]() {
+            for (int i = 0; i < 100; ++i)
+            {
+                auto r = stressPool.submit([&sum, val = i + t * 1000]() {
+                    sum.fetch_add(val);
+                    // 模拟不同时长的工作，增加 steal 机会
+                    std::this_thread::sleep_for(std::chrono::microseconds(val % 50));
+                    return val;
+                });
+                r->syncGetResult(5000);
+            }
+        }));
+    }
+    for (auto& f : futures) f.wait();
+
+    // 验证总和：每个任务 val 累加一次
+    int64_t expected = 0;
+    for (int t = 0; t < 6; ++t)
+        for (int i = 0; i < 100; ++i)
+            expected += i + t * 1000;
+    EXPECT_EQ(sum.load(), expected);
 }

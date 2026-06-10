@@ -15,7 +15,7 @@ namespace xander {
 		mutable std::mutex mutex_;
 		std::condition_variable condVar_;
 	public:
-		auto& deque() { return deque_; };
+		// 注意：不暴露 deque()，调用方必须通过加锁方法操作
 		auto& mutex() const { return mutex_; };
 	public:
 
@@ -26,8 +26,8 @@ namespace xander {
 			deque_ = other.deque_;
 		}
 		~XDeque() = default;
-		///@brief push back the value to the deque
-		void enqueue(const T& value)
+		///@brief push back the value to the deque（值传递，内部 move，真正的 move 语义）
+		void enqueue(T value)
 		{
 			std::lock_guard<std::mutex> lock(mutex_);
 			deque_.push_back(std::move(value));

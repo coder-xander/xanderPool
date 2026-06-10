@@ -30,11 +30,11 @@ namespace xander
         explicit TaskGroup(Pool* pool) : pool_(pool) {}
         ~TaskGroup();
 
-        // 不可复制，可移动
+        // 不可复制、不可移动（std::counting_semaphore 不可移动，move 会丢许可）
         TaskGroup(const TaskGroup&) = delete;
         TaskGroup& operator=(const TaskGroup&) = delete;
-        TaskGroup(TaskGroup&& other) noexcept;
-        TaskGroup& operator=(TaskGroup&& other) noexcept;
+        TaskGroup(TaskGroup&& other) noexcept = delete;
+        TaskGroup& operator=(TaskGroup&& other) noexcept = delete;
 
         /// @brief 提交一个任务到组中
         template <typename F, typename... Args>

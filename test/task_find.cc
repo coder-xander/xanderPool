@@ -1,5 +1,5 @@
 // 任务查找测试
-#include "pool_test.cc"
+#include "pool_test.h"
 
 TEST_F(PoolTest, TaskFind)
 {

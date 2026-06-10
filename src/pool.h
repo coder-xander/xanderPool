@@ -283,32 +283,51 @@ namespace xander
         /// @brief 选择 worker：空闲优先 → 创建新的 → 任务最少
         WorkerPtr pickWorker()
         {
-            std::lock_guard lock(workersMutex_);
+            std::vector<WorkerPtr> toReclaim;
+            WorkerPtr picked;
 
-            reclaimIdleWorkersLocked();
-
-            // 1. 空闲且队列为空的 worker
-            for (auto& w : workers_)
-                if (w->isIdle() && w->taskCount() == 0)
-                    return w;
-
-            // 2. 未达上限，创建新 worker
-            if (static_cast<int>(workers_.size()) < workerMaxNum_.load())
             {
-                auto w = Worker::makeShared(this);
-                workers_.push_back(w);
-                return w;
+                std::lock_guard lock(workersMutex_);
+
+                // 回收空闲 worker（仅从列表移除，shutdown 在锁外执行，避免死锁）
+                reclaimIdleWorkersLocked(toReclaim);
+
+                // 1. 空闲且队列为空的 worker
+                for (auto& w : workers_)
+                    if (w->isIdle() && w->taskCount() == 0)
+                    {
+                        picked = w;
+                        break;
+                    }
+
+                // 2. 未达上限，创建新 worker
+                if (!picked && static_cast<int>(workers_.size()) < workerMaxNum_.load())
+                {
+                    picked = Worker::makeShared(this);
+                    workers_.push_back(picked);
+                }
+
+                // 3. 已达上限，选任务最少的
+                if (!picked)
+                {
+                    picked = *std::min_element(workers_.begin(), workers_.end(),
+                        [](const WorkerPtr& a, const WorkerPtr& b)
+                        {
+                            return a->taskCount() < b->taskCount();
+                        });
+                }
             }
 
-            // 3. 已达上限，选任务最少的
-            return *std::min_element(workers_.begin(), workers_.end(),
-                [](const WorkerPtr& a, const WorkerPtr& b)
-                {
-                    return a->taskCount() < b->taskCount();
-                });
+            // 锁已释放：安全 shutdown 被回收的 worker（不会与 stealing 死锁）
+            for (auto& w : toReclaim)
+                w->shutdown();
+
+            return picked;
         }
 
-        void reclaimIdleWorkersLocked()
+        /// @brief 识别并移除过久空闲的 worker，存入 toReclaim
+        ///         调用方必须在锁外执行 shutdown
+        void reclaimIdleWorkersLocked(std::vector<WorkerPtr>& toReclaim)
         {
             auto now = std::chrono::duration_cast<std::chrono::milliseconds>(
                 std::chrono::steady_clock::now().time_since_epoch()
@@ -324,7 +343,7 @@ namespace xander
                 auto& w = *itr;
                 if (w->isIdle() && w->taskCount() == 0 && (now - w->idleSince()) > threshold)
                 {
-                    w->shutdown();
+                    toReclaim.push_back(std::move(w));
                     itr = workers_.erase(itr);
                 }
                 else
@@ -359,31 +378,6 @@ namespace xander
         {
             doneSem_.acquire();
         }
-    }
-
-    inline TaskGroup::TaskGroup(TaskGroup&& other) noexcept
-        : pool_(other.pool_),
-          pending_(other.pending_.load()),
-          cancelled_(other.cancelled_.load()),
-          doneSem_(0),
-          exPtr_(std::move(other.exPtr_))
-    {
-        other.pool_ = nullptr;
-        other.cancelled_.store(true);
-    }
-
-    inline TaskGroup& TaskGroup::operator=(TaskGroup&& other) noexcept
-    {
-        if (this != &other)
-        {
-            pool_ = other.pool_;
-            pending_.store(other.pending_.load());
-            cancelled_.store(other.cancelled_.load());
-            exPtr_ = std::move(other.exPtr_);
-            other.pool_ = nullptr;
-            other.cancelled_.store(true);
-        }
-        return *this;
     }
 
     inline void TaskGroup::submitToPool(std::function<void()> wrapper)

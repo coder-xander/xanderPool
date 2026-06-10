@@ -1,5 +1,5 @@
 // 性能测试
-#include "pool_test.cc"
+#include "pool_test.h"
 #include "tool.h"
 
 TEST_F(PoolTest, PerformanceSubmit1000)

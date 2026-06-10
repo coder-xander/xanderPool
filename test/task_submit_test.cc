@@ -1,5 +1,5 @@
 // 提交测试
-#include "pool_test.cc"
+#include "pool_test.h"
 
 long long globalFibFunction(int n)
 {

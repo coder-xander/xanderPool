@@ -1,5 +1,5 @@
 // 开发测试：快速创建销毁 Pool
-#include "pool_test.cc"
+#include "pool_test.h"
 
 TEST_F(PoolTest, TestPool)
 {
