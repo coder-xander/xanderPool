@@ -305,6 +305,34 @@ ctest --output-on-failure --timeout 30
 - 只需管理 Pool 的生命周期；析构时自动 join 所有 worker 线程
 - `asyncDestroyed()` 异步发送 shutdown 信号给所有 worker，返回 `future<bool>`
 
+## 运行时遥测
+
+`Pool::dumpWorkers()` 返回所有 worker 的格式化表格，包含运行时计数器。用于调试负载均衡和 worker 活动。
+
+```cpp
+// 任意线程、任意时刻均可调用
+std::cout << pool.dumpWorkers() << std::endl;
+
+// 输出示例：
+// +-------------------+------+--------+-------+--------+------+------+
+// | Thread ID         | Tasks| State  | Steals| Stolen | Idle | Exec |
+// +-------------------+------+--------+-------+--------+------+------+
+// | 0x7f8c9a0b7640    |    0 | Idle   |    12 |     3  |    5 |  150 |
+// | 0x7f8c9a0b7040    |    1 | Busy   |     8 |     5  |    2 |   89 |
+// +-------------------+------+--------+-------+--------+------+------+
+```
+
+| 列 | 计数器 | 说明 |
+|----|--------|------|
+| Tasks | `taskCount()` | 该 worker 本地 deque 中待处理的任务数 |
+| State | `state()` | `Idle`（空闲）、`Busy`（忙碌）、`Stopped`（已停止） |
+| Steals | `stealAttempts_` | 该 worker 尝试从别人那偷任务的次数 |
+| Stolen | `tasksStolenAway_` | 该 worker 的任务被其他人偷走的次数 |
+| Idle | `idleWaits_` | 该 worker 进入空闲等待（条件变量）的次数 |
+| Exec | `tasksExecuted_` | 该 worker 实际执行的任务数 |
+
+以上计数器均为 `std::atomic<uint64_t>`，在 Worker 创建时归零。`dumpWorkers()` 持共享锁遍历 worker 列表，可任意线程安全调用。
+
 ## 注意事项
 
 1. 同一个 `Task` 只能提交一次，需要重复执行请使用 `copy()`

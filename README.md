@@ -307,23 +307,31 @@ Tests use [Google Test](https://github.com/google/googletest) (auto-fetched by C
 
 ## Telemetry
 
-Each Worker exposes atomic counters for runtime introspection via `dumpWorkers()`:
+`Pool::dumpWorkers()` returns a formatted table of all workers with runtime counters. Useful for debugging load balance and worker activity.
 
-| Counter | Description |
-|---------|-------------|
-| `stealAttempts_` | Times this worker tried to steal from others |
-| `tasksStolenAway_` | Times a task was stolen from this worker by another |
-| `idleWaits_` | Times this worker entered idle wait (cv.wait) |
-| `tasksExecuted_` | Tasks actually executed by this worker |
+```cpp
+// Call from any thread at any time
+std::cout << pool.dumpWorkers() << std::endl;
 
-Example output:
+// Example output:
+// +-------------------+------+--------+-------+--------+------+------+
+// | Thread ID         | Tasks| State  | Steals| Stolen | Idle | Exec |
+// +-------------------+------+--------+-------+--------+------+------+
+// | 0x7f8c9a0b7640    |    0 | Idle   |    12 |     3  |    5 |  150 |
+// | 0x7f8c9a0b7040    |    1 | Busy   |     8 |     5  |    2 |   89 |
+// +-------------------+------+--------+-------+--------+------+------+
 ```
-+-------------------+------+--------+-------+--------+------+------+
-| Thread ID         | Tasks| State  | Steals| Stolen | Idle | Exec |
-+-------------------+------+--------+-------+--------+------+------+
-| 0x7f8c9a0b7640    |    0 | Idle   |    12 |     3  |    5 |  150 |
-+-------------------+------+--------+-------+--------+------+------+
-```
+
+| Column | Counter | Description |
+|--------|---------|-------------|
+| Tasks | `taskCount()` | Tasks currently in this worker's local deque |
+| State | `state()` | `Idle`, `Busy`, or `Stopped` |
+| Steals | `stealAttempts_` | Times this worker tried to steal from others |
+| Stolen | `tasksStolenAway_` | Times a task was stolen from this worker by another |
+| Idle | `idleWaits_` | Times this worker entered idle wait (condition variable) |
+| Exec | `tasksExecuted_` | Tasks actually executed by this worker |
+
+The counters are `std::atomic<uint64_t>` and reset on Worker creation. Safe to call from any thread (holds a shared lock on the worker list).
 
 ## Notes
 
