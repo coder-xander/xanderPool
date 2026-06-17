@@ -1,0 +1,31 @@
+# Project Rules
+
+## Commit Messages
+
+Every commit message created or amended in this repository must start with a relevant, good-looking emoji. Keep the text after the emoji concise, clear, and useful.
+
+Use English commit messages unless the user explicitly asks for another language.
+
+Recommended emoji choices:
+
+- `✨` for new features, capabilities, or substantial new notes
+- `🐛` for bug fixes
+- `📝` for documentation, notes, or copy updates
+- `🧹` for cleanup, removals, or deleting unused files
+- `🔒` for privacy, security, or sensitive-data cleanup
+- `♻️` for refactors or reorganizing existing content
+- `✅` for tests and verification changes
+- `⚡` for performance improvements
+- `🔧` for configuration, tooling, or developer workflow changes
+- `📦` for dependencies, packaging, or build artifacts
+- `🚀` for releases, deployments, or launch-related work
+- `🚧` for work in progress when a WIP commit is explicitly requested
+- `⏪` for reverts
+
+Examples:
+
+- `✨ Add calibration workflow shortcuts`
+- `📝 Update setup notes`
+- `🧹 Remove obsolete test files`
+- `🔒 Clean private data from project history`
+- `🔧 Add shared agent rules`
